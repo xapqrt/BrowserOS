@@ -7,7 +7,7 @@ use crate::{
 };
 use axum::{
     Router,
-    extract::{DefaultBodyLimit, Request},
+    extract::{DefaultBodyLimit, Request, State},
     http::{HeaderValue, Method, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -97,10 +97,14 @@ pub fn router(state: AppState) -> Router<AppState> {
         .nest_service(
             "/mcp",
             Router::new()
-                .fallback_service(streamable_http_service(state))
+                .fallback_service(streamable_http_service(state.clone()))
                 .layer(middleware::from_fn(mcp_request_hygiene)),
         )
         .fallback(route_fallback)
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_auth_token,
+        ))
         .layer(middleware::from_fn(options_preflight))
 }
 
@@ -132,7 +136,7 @@ async fn mcp_request_hygiene(req: Request, next: Next) -> Response {
         return StatusCode::NO_CONTENT.into_response();
     }
     let headers = req.headers();
-    if headers.contains_key(header::ORIGIN) || headers.contains_key("sec-fetch-site") {
+    if browser_originated_mcp_request(headers) {
         return AppError::forbidden("unsupported request").into_response();
     }
     let needs_json = match *req.method() {
@@ -150,6 +154,64 @@ async fn mcp_request_hygiene(req: Request, next: Next) -> Response {
         if !is_json {
             return AppError::unsupported_media_type("unsupported content type").into_response();
         }
+    }
+    next.run(req).await
+}
+
+/// Browser-page CSRF: reject HTTP(S) page origins and cross-site fetches.
+/// Native clients (Electron, MCP SDKs) may send `Sec-Fetch-Site: none` or no
+/// fetch metadata at all; those must stay allowed.
+fn browser_originated_mcp_request(headers: &axum::http::HeaderMap) -> bool {
+    if let Some(origin) = headers
+        .get(header::ORIGIN)
+        .and_then(|value| value.to_str().ok())
+    {
+        let origin = origin.trim();
+        if !origin.is_empty()
+            && origin != "null"
+            && (origin.starts_with("http://") || origin.starts_with("https://"))
+        {
+            let is_loopback = origin.contains("://127.0.0.1")
+                || origin.contains("://localhost")
+                || origin.contains("://[::1]");
+            if !is_loopback {
+                return true;
+            }
+        }
+    }
+    match headers
+        .get("sec-fetch-site")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+    {
+        Some("cross-site") | Some("same-site") => true,
+        _ => false,
+    }
+}
+
+async fn require_auth_token(State(state): State<AppState>, req: Request, next: Next) -> Response {
+    let Some(expected) = state.config.auth_token.as_deref().filter(|token| !token.is_empty()) else {
+        return next.run(req).await;
+    };
+    let path = req.uri().path();
+    if path == "/system/health" || path == "/health" {
+        return next.run(req).await;
+    }
+    if !path.starts_with("/api/") {
+        return next.run(req).await;
+    }
+    let provided = req
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .or_else(|| {
+            req.headers()
+                .get("x-browseros-token")
+                .and_then(|value| value.to_str().ok())
+        });
+    if provided != Some(expected) {
+        return AppError::unauthorized("invalid or missing auth token").into_response();
     }
     next.run(req).await
 }

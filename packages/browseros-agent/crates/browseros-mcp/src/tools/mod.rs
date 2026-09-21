@@ -9,6 +9,7 @@ pub mod grep;
 pub mod history;
 pub mod navigate;
 pub mod pdf;
+pub mod poll;
 pub mod read;
 pub mod run;
 pub mod screenshot;
@@ -39,6 +40,7 @@ pub fn catalog() -> Vec<ToolDef> {
         windows::definition(),
         evaluate::definition(),
         run::definition(),
+        poll::definition(),
     ]
 }
 
@@ -48,6 +50,10 @@ fn read_only_annotations() -> ToolAnnotations {
 
 fn open_world_annotations() -> ToolAnnotations {
     ToolAnnotations::new().open_world(true)
+}
+
+fn destructive_annotations() -> ToolAnnotations {
+    ToolAnnotations::new().read_only(false).open_world(true)
 }
 
 fn def<T>(

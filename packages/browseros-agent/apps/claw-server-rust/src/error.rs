@@ -75,6 +75,13 @@ impl AppError {
     }
 
     #[must_use]
+    pub fn unauthorized(message: impl Into<String>) -> Self {
+        Self::Http {
+            status: StatusCode::UNAUTHORIZED,
+            message: message.into(),
+        }
+    }
+
     pub fn forbidden(message: impl Into<String>) -> Self {
         Self::Http {
             status: StatusCode::FORBIDDEN,

@@ -24,7 +24,8 @@ import { useCredits } from '@/modules/credits/credits.hooks'
 const CreditsBadgeWrapper: FC = () => {
   const { supports } = useCapabilities()
   const { data } = useCredits()
-  if (!supports(Feature.CREDITS_SUPPORT) || data === undefined) return null
+  if (!supports(Feature.CREDITS_SUPPORT)) return null
+  if (data === undefined) return null
   return (
     <CreditBadge
       credits={data.credits}
@@ -42,6 +43,10 @@ export interface ChatHeaderProps {
   hideHistory?: boolean
   /** Lets the full-page chat opt into spacing without changing the sidepanel. */
   className?: string
+  /** Shown so you can tell this is the same chat, not a new one. */
+  threadTitle?: string
+  /** Last stored id — Resume instead of only New chat. */
+  resumeConversationId?: string | null
 }
 
 export const ChatHeader: FC<ChatHeaderProps> = ({
@@ -52,6 +57,8 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
   hasMessages,
   hideHistory,
   className,
+  threadTitle,
+  resumeConversationId,
 }) => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -79,25 +86,43 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
           <button
             type="button"
             className="group relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-foreground transition-colors hover:border-[var(--accent-orange)]/40 hover:bg-muted/50 data-[state=open]:border-[var(--accent-orange)]/50 data-[state=open]:bg-accent"
-            title="Change AI Provider"
+            title="Change model or agent"
           >
             <HeaderProviderIcon provider={selectedProvider} />
             <span className="font-semibold text-base">
-              {selectedProvider.name}
+              {selectedProvider.modelLabel ?? selectedProvider.name}
             </span>
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
           </button>
         </ChatProviderSelector>
         {selectedProvider.type === 'browseros' && <CreditsBadgeWrapper />}
+        {hasMessages && threadTitle ? (
+          <span
+            className="hidden max-w-[140px] truncate text-muted-foreground text-xs sm:inline"
+            title={threadTitle}
+          >
+            {threadTitle}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-1">
+        {!isHistoryPage && !hasMessages && resumeConversationId ? (
+          <Link
+            to={`/?conversationId=${resumeConversationId}`}
+            className="cursor-pointer rounded-lg px-2 py-1.5 text-muted-foreground text-xs transition-colors hover:bg-muted/50 hover:text-foreground"
+            title="Resume last chat"
+          >
+            Resume
+          </Link>
+        ) : null}
+
         {!isHistoryPage && hasMessages && (
           <button
             type="button"
             onClick={onNewConversation}
             className="cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            title="New conversation"
+            title="Start a new chat (keeps this one in History)"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -138,7 +163,7 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           className="cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          title="Settings"
+          title="Settings — models, MCP, usage"
         >
           <SettingsIcon className="h-4 w-4" />
         </a>

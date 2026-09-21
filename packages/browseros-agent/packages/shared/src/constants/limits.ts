@@ -11,7 +11,7 @@ export const RECORDING_INGEST_MAX_BYTES = 16 * 1024 * 1024
 export const RECORDING_INGEST_FALLBACK_MAX_BYTES = 2 * 1024 * 1024
 
 export const AGENT_LIMITS = {
-  MAX_TURNS: 100,
+  MAX_TURNS: 250,
   DEFAULT_CONTEXT_WINDOW: 200_000,
 
   // Compaction trigger. Reserve is headroom for the model's own response and is

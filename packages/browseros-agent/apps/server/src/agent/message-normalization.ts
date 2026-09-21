@@ -44,6 +44,10 @@ function supportsToolResultMediaTransport(
         config.upstreamProvider === LLM_PROVIDERS.ANTHROPIC ||
         config.upstreamProvider === LLM_PROVIDERS.AZURE
       )
+    case LLM_PROVIDERS.OPENROUTER:
+      // OpenRouter does not accept image parts inside tool-result content;
+      // extract them onto a following user message instead of dropping them.
+      return false
     default:
       return false
   }
@@ -52,8 +56,13 @@ function supportsToolResultMediaTransport(
 export function getMessageNormalizationOptions(
   config: ResolvedAgentConfig,
 ): MessageNormalizationOptions {
+  const isOpenRouter =
+    config.provider === LLM_PROVIDERS.OPENROUTER ||
+    config.upstreamProvider === LLM_PROVIDERS.OPENROUTER
   return {
-    supportsImages: config.supportsImages !== false,
+    // OpenRouter vision models accept user-message images even when the
+    // stored provider row left `supportsImages` unset/false.
+    supportsImages: isOpenRouter ? true : config.supportsImages !== false,
     supportsMediaInToolResults: supportsToolResultMediaTransport(config),
   }
 }
@@ -79,6 +88,23 @@ function buildToolResultMediaLabel(parts: UserMediaPart[]): string {
 function toolResultContentPartToUserMedia(
   part: ToolResultContentPart,
 ): UserMediaPart | null {
+  const unknown = part as {
+    type?: string
+    data?: string
+    mediaType?: string
+    mimeType?: string
+  }
+  if (
+    unknown.type === 'image' &&
+    typeof unknown.data === 'string' &&
+    unknown.data.length > 0
+  ) {
+    return {
+      type: 'image',
+      image: unknown.data,
+      mediaType: unknown.mediaType ?? unknown.mimeType ?? 'image/png',
+    }
+  }
   switch (part.type) {
     case 'image-data':
       if (part.mediaType.startsWith('image/')) {

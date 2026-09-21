@@ -6,13 +6,13 @@
 
 import type { MiddlewareHandler } from 'hono'
 
-// Browsers always send a Sec-Fetch-Site header; native MCP clients and the
-// internal ACP client never do. Rejecting it blocks browser-originated requests
-// (DNS rebinding, CSRF) against the LAN-exposed MCP endpoint without restricting
-// the bind address. Mirrors the claw-server's request hygiene.
+// Browser-page CSRF: reject cross-site / same-site fetches.
+// Native Electron MCP clients send `Sec-Fetch-Site: none` (or omit it).
+// Blocking any Sec-Fetch-Site header 403'd Cherry Studio and similar (#2458).
 export function rejectBrowserFetch(): MiddlewareHandler {
   return async (c, next) => {
-    if (c.req.header('Sec-Fetch-Site') !== undefined) {
+    const site = c.req.header('Sec-Fetch-Site')?.trim().toLowerCase()
+    if (site === 'cross-site' || site === 'same-site') {
       return c.json(
         {
           error: {

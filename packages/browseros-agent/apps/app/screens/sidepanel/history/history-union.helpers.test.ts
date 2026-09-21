@@ -16,7 +16,14 @@ function conversation(id: string): HistoryConversation {
 function grouped(
   overrides: Partial<GroupedConversations> = {},
 ): GroupedConversations {
-  return { today: [], thisWeek: [], thisMonth: [], older: [], ...overrides }
+  return {
+    pinned: [],
+    today: [],
+    thisWeek: [],
+    thisMonth: [],
+    older: [],
+    ...overrides,
+  }
 }
 
 describe('excludeLocalConversations', () => {

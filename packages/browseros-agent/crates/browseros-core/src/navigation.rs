@@ -99,12 +99,23 @@ async fn wait_for_load(
         )
         .await;
         // Navigation can tear down the execution context; errors and timeouts mean not ready yet, so keep polling.
-        if let Ok(Ok(result)) = result
-            && result.result.value.as_ref().and_then(Value::as_str) == Some("complete")
-        {
-            return Ok(());
+        if let Ok(Ok(result)) = result {
+            let ready = result
+                .result
+                .value
+                .as_ref()
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            // SPAs often never reach "complete". Interactive is enough to act.
+            if ready == "complete" || ready == "interactive" {
+                return Ok(());
+            }
         }
         sleep(timeouts::WAIT_FOR_LOAD_POLL).await;
     }
+    // Don't leave Chromium's tab spinner spinning forever on a hung navigation.
+    let _ = session
+        .send::<_, Value>("Page.stopLoading", json!({}))
+        .await;
     Ok(())
 }

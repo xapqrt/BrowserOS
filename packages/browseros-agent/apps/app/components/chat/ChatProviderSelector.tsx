@@ -51,11 +51,13 @@ export const ChatProviderSelector: FC<
             {groups.map((group) => (
               <CommandGroup key={group.key} heading={group.label}>
                 {group.options.map((provider) => {
-                  const isSelected = selectedProvider.id === provider.id
+                  const isSelected =
+                    selectedProvider.id === provider.id &&
+                    selectedProvider.kind === provider.kind
                   const subtitle = getProviderSubtitle(provider)
                   return (
                     <CommandItem
-                      key={provider.id}
+                      key={`${provider.kind}:${provider.id}`}
                       value={getProviderSearchValue(provider, group.label)}
                       onSelect={() => {
                         onSelectProvider(provider)

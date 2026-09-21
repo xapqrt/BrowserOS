@@ -144,6 +144,10 @@ BrowserOS neo runs on macOS and Windows. BrowserOS runs on macOS, Windows, and L
 - [BrowserOS neo docs](https://docs.browseros.com) · [BrowserOS docs](https://docs.browseros.com/browseros)
 - Enterprise deployment: [founders@browseros.com](mailto:founders@browseros.com?subject=Enterprise%3A%20BrowserOS%20neo&body=Hi%2C%0A%0AWe%27re%20looking%20at%20BrowserOS%20neo%20for%20our%20team.%0A%0ACompany%3A%0ATeam%20size%3A%0AWhat%20we%20want%20to%20automate%3A)
 
+## Session smoothness (this fork)
+
+Daily-use work on the human BrowserOS side panel and new-tab chat (history, send/stop, no forever page-load waits) lives in **[docs/session-smoothness.md](docs/session-smoothness.md)**. That is the full map of timeouts, files, and what is still out of scope.
+
 ## For developers
 
 Both browsers ship from this monorepo. Two main subsystems: the **browser** (Chromium fork, C++ and Python) and the **agent platform** (TypeScript, Rust and Go).

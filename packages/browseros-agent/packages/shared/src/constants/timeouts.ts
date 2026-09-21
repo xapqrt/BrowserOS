@@ -12,6 +12,8 @@ export const KLAVIS_PROXY_RETRY_BACKOFF_MS = [
 
 export const TIMEOUTS = {
   // Agent/Tool execution
+  /** First token of /chat. 0 = no client abort (was 45s hung spinner). */
+  CHAT_FIRST_BYTE: 0,
   TOOL_CALL: 120_000,
   TOOL_POST_ACTION: 2_000,
   TAB_GROUP_OP: 10_000,
@@ -29,14 +31,14 @@ export const TIMEOUTS = {
   CDP_RECONNECT_DELAY: 5_000,
   CDP_KEEPALIVE_INTERVAL: 30_000,
   CDP_KEEPALIVE_TIMEOUT: 10_000,
-  CDP_REQUEST_TIMEOUT: 60_000,
+  CDP_REQUEST_TIMEOUT: 120_000,
 
   // External API calls
   KLAVIS_FETCH: 30_000,
 
   // Navigation/DOM
   NAVIGATION: 10_000,
-  PAGE_LOAD_WAIT: 30_000,
+  PAGE_LOAD_WAIT: 8_000,
   PAGE_LOAD_POLL_INTERVAL: 150,
   STABLE_DOM: 3_000,
   FILE_CHOOSER: 3_000,

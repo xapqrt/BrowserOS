@@ -27,6 +27,7 @@ export class PanelConversationAttachment {
   private readonly retired = new Set<string>()
   private disposed = false
   private retryDelay = 0
+  private retryCount = 0
 
   constructor(private readonly deps: PanelConversationAttachmentDeps) {}
 
@@ -42,6 +43,7 @@ export class PanelConversationAttachment {
     this.view = view
     this.attached = ''
     this.retryDelay = 0
+    this.retryCount = 0
     if (!view) {
       if (previous) this.deps.clear(previous.conversationId)
       return
@@ -75,6 +77,8 @@ export class PanelConversationAttachment {
       this.retired.has(this.view.conversationId)
     )
       return
+    if (this.retryCount >= 6) return
+    this.retryCount += 1
     this.invalidate()
     this.attached = ''
     this.retryDelay = Math.min(

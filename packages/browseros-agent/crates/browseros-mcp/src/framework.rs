@@ -294,7 +294,9 @@ pub async fn execute_tool(
     ctx: &ToolCtx,
 ) -> ToolExecResult<ToolResult> {
     ctx.throw_if_cancelled()?;
+    let _idle = crate::idle_sleep::hold();
     let primary_page = extract_page_id(def.metadata.accepts_page_arg, &raw_args).map(PageId);
+    // Do not activate the tab. Stealing focus makes the user's current page jump.
     let mut response = ToolResponse::new();
     match (def.handler)(raw_args, ctx, &mut response).await {
         Ok(Some(result)) => response.append_result(result),
@@ -644,7 +646,7 @@ pub fn page_json(page: &browseros_core::pages::PageInfo) -> Value {
         "url": page.url.as_str(),
         "title": page.title.as_str(),
         "isActive": page.is_active,
-        "isLoading": page.is_loading,
+        "isLoading": page.is_loading && page.load_progress < 0.5,
         "loadProgress": page.load_progress,
         "isPinned": page.is_pinned,
     });

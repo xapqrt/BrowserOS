@@ -12,6 +12,9 @@ export interface ServerConversationSummary {
   id: string
   lastMessagedAt: number
   lastUserMessage: string
+  origin?: string
+  targetType?: string
+  agentId?: string
 }
 
 export interface ServerConversation {
@@ -35,11 +38,23 @@ export async function fetchServerConversations(): Promise<
     throw new Error(`Failed to load conversations (${response.status})`)
   }
   const { conversations } = await response.json()
-  return conversations.map((conversation) => ({
-    id: conversation.id,
-    lastMessagedAt: conversation.lastMessagedAt,
-    lastUserMessage: conversation.lastUserMessage ?? '',
-  }))
+  return conversations.map((conversation) => {
+    const summary: ServerConversationSummary = {
+      id: conversation.id,
+      lastMessagedAt: conversation.lastMessagedAt,
+      lastUserMessage: conversation.lastUserMessage ?? '',
+    }
+    if ('origin' in conversation && conversation.origin) {
+      summary.origin = conversation.origin
+    }
+    if ('targetType' in conversation && conversation.targetType) {
+      summary.targetType = conversation.targetType
+    }
+    if ('agentId' in conversation && conversation.agentId) {
+      summary.agentId = conversation.agentId
+    }
+    return summary
+  })
 }
 
 export async function fetchServerConversation(

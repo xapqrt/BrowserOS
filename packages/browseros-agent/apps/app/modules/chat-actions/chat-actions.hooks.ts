@@ -48,7 +48,7 @@ export function useChatActions(config: ChatActionsConfig) {
 
   const handleStop = () => {
     track(config.events.stopClicked)
-    stop()
+    void stop()
   }
 
   const toggleTabSelection = (tab: chrome.tabs.Tab) => {

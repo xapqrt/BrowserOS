@@ -20,6 +20,7 @@ export function excludeLocalConversations(
 /** Whether a grouped set has anything in it, in any bucket. */
 export function hasAnyConversation(grouped: GroupedConversations): boolean {
   return (
+    grouped.pinned.length > 0 ||
     grouped.today.length > 0 ||
     grouped.thisWeek.length > 0 ||
     grouped.thisMonth.length > 0 ||

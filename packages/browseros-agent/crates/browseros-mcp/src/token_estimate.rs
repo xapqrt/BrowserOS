@@ -63,7 +63,12 @@ pub fn slice_text_by_estimated_tokens(text: &str, max_tokens: usize) -> String {
         if estimate_text_tokens(&text[..candidate]) <= max_tokens {
             low = candidate;
         } else {
-            high = candidate.saturating_sub(1);
+            // Stay on a char boundary so a multi-byte UTF-8 prefix never panics
+            // when we slice `text[..high]` in a later iteration.
+            high = floor_char_boundary(text, candidate.saturating_sub(1));
+            if high <= low {
+                break;
+            }
         }
     }
     let end = floor_char_boundary(text, low);
@@ -72,10 +77,14 @@ pub fn slice_text_by_estimated_tokens(text: &str, max_tokens: usize) -> String {
 
 fn floor_char_boundary(text: &str, index: usize) -> usize {
     let mut index = index.min(text.len());
-    while !text.is_char_boundary(index) {
+    // UTF-8 lead bytes are at most 4 bytes; never spin if index is garbage (#2707).
+    for _ in 0..4 {
+        if text.is_char_boundary(index) {
+            return index;
+        }
         index = index.saturating_sub(1);
     }
-    index
+    0
 }
 
 fn estimate_content_block_tokens(content: &ContentBlock) -> i64 {
@@ -122,6 +131,7 @@ mod tests {
     use super::{
         estimate_image_tokens_from_dimensions, estimate_json_output_tokens, estimate_text_tokens,
         estimate_tool_input_tokens, estimate_tool_output_tokens, saturating_token_sum,
+        slice_text_by_estimated_tokens,
     };
 
     fn png_header(width: u32, height: u32) -> String {
@@ -215,6 +225,15 @@ mod tests {
     #[test]
     fn token_totals_saturate_instead_of_wrapping() {
         assert_eq!(saturating_token_sum([i64::MAX, 1]), i64::MAX);
+    }
+
+    #[test]
+    fn slice_by_tokens_stays_on_utf8_char_boundaries() {
+        let text = "éééééééééé";
+        let sliced = slice_text_by_estimated_tokens(text, 2);
+        assert!(sliced.is_char_boundary(sliced.len()));
+        assert!(text.starts_with(&sliced));
+        assert!(estimate_text_tokens(&sliced) <= 2);
     }
 
     #[test]

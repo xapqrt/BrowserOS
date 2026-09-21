@@ -28,7 +28,7 @@ Prefer `run` for multi-step work; reach for evaluate only as a fallback for a on
 Use this for page-state reads or small DOM scripts that are awkward with read/grep. \
 Provide `code` (an async body; use `return` to read a value) or `func` (a function \
 expression like `() => {...}` that gets invoked). Return a value to read it back. \
-`timeout` is capped at 30000 ms; for page work that needs longer, start it on the page and poll with short follow-up calls rather than one long evaluate. \
+`timeout` is capped at 30000 ms. If the page is still working, the result is `{ jobId, status: \"running\" }` — call `poll` (and `cancel` to abort) with that jobId and the same `page`. Do not treat a 30s cap as a CDP crash. \
 A result larger than the inline limit is truncated and its full text is written to a local file whose path a remote MCP client cannot read; return only what you need, or raise `maxChars` to receive more of the value inline.";
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -103,6 +103,9 @@ fn handler<'a>(
         }
         let page = ctx.session.pages.get_session(PageId(args.page)).await?;
         let timeout = clamp_timeout(args.timeout, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
+        // Race inside the page so work that outlives the cap can be polled
+        // instead of being aborted by CDP (#2703).
+        let expression = wrap_with_job_race(&expression, timeout);
         let result: EvaluateResult = page
             .session
             .send(
@@ -111,7 +114,6 @@ fn handler<'a>(
                     "expression": expression,
                     "returnByValue": true,
                     "awaitPromise": true,
-                    "timeout": timeout,
                     "userGesture": true
                 }),
             )
@@ -216,6 +218,34 @@ fn wrap_as_invoked_fn(func: &str) -> String {
     format!("(async () => {{ return await ({func})(); }})()")
 }
 
+fn wrap_with_job_race(expression: &str, timeout_ms: u64) -> String {
+    format!(
+        r#"(async () => {{
+  const work = Promise.resolve({expression});
+  const timeoutMs = {timeout_ms};
+  const raced = await Promise.race([
+    work.then((v) => ({{ k: 'ok', v }})),
+    new Promise((resolve) => setTimeout(() => resolve({{ k: 'to' }}), timeoutMs)),
+  ]);
+  if (raced.k === 'ok') return raced.v;
+  const jobId = 'job-ev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  globalThis.__browserosJobs = globalThis.__browserosJobs || {{}};
+  globalThis.__browserosJobs[jobId] = {{ jobId, status: 'running', cancelled: false }};
+  work.then((v) => {{
+    const cur = globalThis.__browserosJobs[jobId];
+    if (cur && cur.cancelled) return;
+    globalThis.__browserosJobs[jobId] = {{ jobId, status: 'done', value: v }};
+  }})
+      .catch((e) => {{
+    const cur = globalThis.__browserosJobs[jobId];
+    if (cur && cur.cancelled) return;
+    globalThis.__browserosJobs[jobId] = {{ jobId, status: 'error', error: String(e && e.message ? e.message : e) }};
+  }});
+  return {{ jobId, status: 'running' }};
+}})()"#
+    )
+}
+
 fn safe_stringify(value: &Value) -> String {
     if let Some(value) = value.as_str() {
         return value.to_string();
@@ -235,7 +265,10 @@ fn safe_prefix(text: &str, max_chars: usize) -> String {
         return text.to_string();
     }
     let mut end = max_chars;
-    while !text.is_char_boundary(end) {
+    for _ in 0..4 {
+        if text.is_char_boundary(end) {
+            break;
+        }
         end = end.saturating_sub(1);
     }
     text[..end].to_string()

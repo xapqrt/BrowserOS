@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import useDeepCompareEffect from 'use-deep-compare-effect'
 import type { Provider } from '@/components/chat/chatComponentTypes'
-import { useSessionInfo } from '@/lib/auth/sessionStorage'
 import {
   conversationForTab,
   conversationPanelViewsStorage,
@@ -65,7 +64,38 @@ import {
 import { useExecutionHistoryTracker } from './execution-history-tracker.hooks'
 import { PanelConversationAttachment } from './panel-conversation-attachment'
 import { toLlmProviderConfig } from './sidepanel-chat-targets'
+import { chatFetch } from './chat-fetch'
 import { stripImageToolOutputs } from './tool-output-strip'
+
+const LAST_CONVERSATION_STORAGE_KEY = 'browseros.sidepanel.lastConversationId'
+
+/** HashRouter puts search in the hash; `location.search` is empty in the side panel. */
+export const conversationIdFromWindowLocation = (): string | null => {
+  const fromSearch = new URLSearchParams(window.location.search).get(
+    'conversationId',
+  )
+  if (fromSearch) return fromSearch
+  const hash = window.location.hash
+  const query = hash.includes('?') ? hash.slice(hash.indexOf('?')) : ''
+  return new URLSearchParams(query).get('conversationId')
+}
+
+export const readStoredConversationId = (): string | null => {
+  try {
+    return sessionStorage.getItem(LAST_CONVERSATION_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+const writeStoredConversationId = (id: string | null) => {
+  try {
+    if (!id) sessionStorage.removeItem(LAST_CONVERSATION_STORAGE_KEY)
+    else sessionStorage.setItem(LAST_CONVERSATION_STORAGE_KEY, id)
+  } catch {
+    // private mode
+  }
+}
 
 const getLastMessageText = (messages: UIMessage[]) => {
   const lastMessage = messages[messages.length - 1]
@@ -218,16 +248,16 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     error: agentUrlError,
   } = useAgentServerUrl()
 
-  // Identity is still needed to read a cloud conversation back. Nothing on
-  // this screen writes to the cloud any more.
-  const { sessionInfo } = useSessionInfo()
-  const userId = sessionInfo.user?.id
-  const isLoggedIn = !!userId
   const [searchParams, setSearchParams] = useSearchParams()
   const setSearchParamsRef = useRef(setSearchParams)
   setSearchParamsRef.current = setSearchParams
-  const conversationIdParam = searchParams.get('conversationId')
-  const restoreLocally = options?.origin === 'newtab' || !isLoggedIn
+  const conversationIdParam =
+    searchParams.get('conversationId') ??
+    conversationIdFromWindowLocation()
+  // Local SQLite is the source of truth for history clicks (#2665). Waiting on
+  // GraphQL first left the side panel flashing then snapping back when the
+  // cloud row was missing. Cloud is only a fallback after a local miss.
+  const restoreLocally = true
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [restoreAttempt, setRestoreAttempt] = useState(0)
   const [restoredConversationId, setRestoredConversationId] = useState<
@@ -235,6 +265,16 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   >(null)
   const isRestoringConversation =
     !!conversationIdParam && restoredConversationId !== conversationIdParam
+
+  useEffect(() => {
+    if (!isRestoringConversation) return
+    const timer = window.setTimeout(() => {
+      setRestoreError(
+        'This chat is taking too long to open. Try again, or open your last saved chat.',
+      )
+    }, 8_000)
+    return () => window.clearTimeout(timer)
+  }, [isRestoringConversation, conversationIdParam])
 
   // 'local': the local server owns history, persisting it to SQLite during
   // /chat. Every signed-in user now takes this path too, where the client used
@@ -253,12 +293,8 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     agentUrlRef.current = agentServerUrl
   }, [agentServerUrl])
 
-  const canSend =
-    !isLoadingAgentUrl &&
-    !agentUrlError &&
-    !!agentServerUrl &&
-    !isRestoringConversation &&
-    !restoreError
+  // Always allow Send. If the local URL is not ready yet, sendMessage queues.
+  const canSend = true
 
   const providers: Provider[] = chatTargets.map(toProviderOption)
 
@@ -268,7 +304,12 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   )
   const [liked, setLiked] = useState<Record<string, boolean>>({})
   const [disliked, setDisliked] = useState<Record<string, boolean>>({})
-  const [conversationId, setConversationId] = useState(crypto.randomUUID())
+  const [conversationId, setConversationId] = useState(
+    () =>
+      conversationIdFromWindowLocation() ||
+      readStoredConversationId() ||
+      crypto.randomUUID(),
+  )
   const conversationIdRef = useRef(conversationId)
   const optionsRef = useRef(options)
   const panelTabRef = useRef<Promise<number | undefined> | undefined>(undefined)
@@ -291,6 +332,18 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   useEffect(() => {
     conversationIdRef.current = conversationId
   }, [conversationId])
+
+  // Remounts used to mint a fresh UUID and lose the in-app session. Restore the
+  // last id so the server conversation (and MCP handle on that conversation) stick.
+  useEffect(() => {
+    if (searchParams.get('conversationId') || conversationIdFromWindowLocation())
+      return
+    const stored = readStoredConversationId()
+    if (!stored) return
+    setSearchParams({ conversationId: stored }, { replace: true })
+    // only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const {
     startTask: startExecutionTask,
@@ -385,6 +438,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   const transportRef = useRef<DefaultChatTransport<UIMessage> | null>(null)
   if (!transportRef.current) {
     transportRef.current = new DefaultChatTransport<UIMessage>({
+      fetch: chatFetch,
       prepareReconnectToStreamRequest: async ({ body }) => {
         const serverUrl = await resolveAgentServerUrlWithRetry()
         return {
@@ -547,6 +601,27 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     // no longer a lifecycle signal.
     const stoppedConversationId = conversationIdRef.current
     const detaching = detachView()
+    const tabKey = pendingSelectionTabKeyRef.current
+    if (tabKey) {
+      pendingSelectionTabKeyRef.current = null
+      delete selectionMapRef.current[tabKey]
+      void selectedTextStorage.getValue().then((map) => {
+        if (!map[tabKey]) return
+        const { [tabKey]: _, ...rest } = map
+        void selectedTextStorage.setValue(rest)
+      })
+    }
+    void chrome.tabs.query({ currentWindow: true }).then((tabs) => {
+      for (const tab of tabs) {
+        if (tab.id === undefined) continue
+        void chrome.tabs
+          .sendMessage(tab.id, {
+            conversationId: stoppedConversationId,
+            isActive: false,
+          })
+          .catch(() => undefined)
+      }
+    })
     try {
       const serverUrl =
         agentUrlRef.current ?? (await resolveAgentServerUrlWithRetry())
@@ -590,15 +665,25 @@ export const useChatSession = (options?: ChatSessionOptions) => {
         return localStreamRunRef.current === runId
       },
       attach: async (state, isCurrent) => {
-        await detachView()
+        // An explicit history selection owns the URL. Do not clobber it with
+        // the last panel assignment or the view snaps back (#2665).
+        const historySelection = conversationIdFromWindowLocation()
+        if (historySelection && historySelection !== state.conversationId) {
+          return
+        }
+        if (conversationIdRef.current !== state.conversationId) {
+          await detachView()
+        }
         if (!isCurrent()) return
         const id = state.conversationId as ReturnType<typeof crypto.randomUUID>
         conversationIdRef.current = id
         messagesRef.current = state.messages
         setConversationId(id)
         setMessages(state.messages)
-        setSearchParamsRef.current({}, { replace: true })
-        if (state.status === 'running') {
+        if (!historySelection) {
+          setSearchParamsRef.current({}, { replace: true })
+        }
+        if (state.status === 'running' && localStreamConversationRef.current !== id) {
           streamRequestRef.current = resumeStream({
             body: {
               conversationId: state.conversationId,
@@ -642,7 +727,8 @@ export const useChatSession = (options?: ChatSessionOptions) => {
       if (attachmentRef.current === attachment)
         attachmentRef.current = undefined
       unwatch()
-      void detachView()
+      // Do not abort the server-owned run just because the panel unmounted.
+      // That's how chats randomly cut off when history or another tab remounts.
     }
   }, [detachView, resumeStream, setMessages])
 
@@ -657,7 +743,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     const nonEmpty = messages.some((m) => !m.parts?.length)
       ? messages.filter((m) => m.parts?.length > 0)
       : messages
-    const cleaned = stripImageToolOutputs(nonEmpty, { keepLastMessage: true })
+    const cleaned = stripImageToolOutputs(nonEmpty)
     if (cleaned !== messages) setMessages(cleaned)
   }, [messages, status, setMessages])
 
@@ -668,7 +754,8 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     GetConversationWithMessagesDocument,
     { conversationId: conversationIdParam ?? '' },
     {
-      enabled: !!conversationIdParam && !restoreLocally,
+      // Local SQLite is source of truth. Cloud fallback caused history flash (#2665).
+      enabled: false,
     },
   )
 
@@ -679,28 +766,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     if (!conversationIdParam) return
     if (restoredConversationId === conversationIdParam) return
 
-    if (!restoreLocally) {
-      if (!isRemoteConversationFetched) return
-
-      if (remoteConversationData?.conversation) {
-        const restoredMessages =
-          remoteConversationData.conversation.conversationMessages.nodes
-            .filter((node): node is NonNullable<typeof node> => node !== null)
-            .map((node) => node.message as UIMessage)
-
-        setConversationId(
-          conversationIdParam as ReturnType<typeof crypto.randomUUID>,
-        )
-        setMessages(restoredMessages)
-        setRestoredConversationId(conversationIdParam)
-        setSearchParams({}, { replace: true })
-        return
-      }
-      // Not in the cloud. Since #2542 the local server owns a signed-in user's
-      // history too, so a conversation opened from the local history list has
-      // no cloud record: read it from the server instead of giving up, which
-      // left the side panel snapping back to its previous view (#2665).
-    }
+    // Prefer the local server. GraphQL is a fallback for cloud-only rows.
 
     if (isLoadingProviders || isLoadingAgentUrl) return
     let cancelled = false
@@ -729,6 +795,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           await selectChatTarget(target)
         }
         if (cancelled) return
+        setRestoreError(null)
         const id = conversation.id as ReturnType<typeof crypto.randomUUID>
         conversationIdRef.current = id
         messagesRef.current = conversation.messages
@@ -740,21 +807,18 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           )
       },
       onMissing: () => {
-        if (options?.origin === 'newtab')
-          setRestoreError(
-            'This conversation is no longer available. Choose another conversation or start a new one.',
-          )
+        setRestoreError(
+          'This conversation is no longer available. Choose another conversation or start a new one.',
+        )
       },
       onError: (error) => {
-        if (options?.origin === 'newtab')
-          setRestoreError('Couldn’t open this conversation. Please try again.')
+        setRestoreError('Couldn’t open this conversation. Please try again.')
         sentry.captureException(error, {
           extra: { conversationId: conversationIdParam },
         })
       },
       onSettled: () => {
         setRestoredConversationId(conversationIdParam)
-        if (options?.origin !== 'newtab') setSearchParams({}, { replace: true })
       },
     })
     return () => {
@@ -775,6 +839,10 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     messagesRef.current = messages
     syncExecutionHistory(messages, status)
   }, [messages, status, syncExecutionHistory])
+
+  useEffect(() => {
+    if (messages.length > 0) writeStoredConversationId(conversationId)
+  }, [conversationId, messages.length])
 
   // Save conversation only after a turn terminates — not on every token
   const previousStatusRef = useRef(status)
@@ -911,7 +979,10 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     action?: ChatAction
     files?: FileUIPart[]
   }) => {
-    if (isRestoringConversation || restoreError) return
+    if (restoreError) {
+      setRestoreError(null)
+      setRestoredConversationId(conversationIdRef.current)
+    }
     if (!isIntegrationsSyncedRef.current || !agentUrlRef.current) {
       pendingMessageRef.current = params
       return
@@ -951,31 +1022,13 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     return () => unwatch()
   }, [])
 
-  const discardServerSession = useCallback((conversationId: string) => {
-    const serverUrl = agentUrlRef.current
-    if (!serverUrl) return
-    void fetch(`${serverUrl}/chat/${encodeURIComponent(conversationId)}`, {
-      method: 'DELETE',
-      keepalive: true,
-    })
-      .then((response) => {
-        if (!response.ok && response.status !== 404) {
-          throw new Error(`Session cleanup failed (${response.status})`)
-        }
-      })
-      .catch((error) => {
-        sentry.captureException(error, {
-          extra: { conversationId },
-        })
-      })
-  }, [])
-
   const resetConversationState = () => {
     const previousConversationId = conversationIdRef.current
     attachmentRef.current?.retire(previousConversationId)
     pendingMessageRef.current = null
     localStreamConversationRef.current = undefined
-    discardServerSession(previousConversationId)
+    // Leave the previous server session intact so New Chat is not a delete.
+    void previousConversationId
     const nextId = crypto.randomUUID()
     conversationIdRef.current = nextId
     viewTransitionRef.current = detachView().then(() => {
@@ -993,6 +1046,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     // (via the restore effect's cleanup), so a stale response can't revive the
     // old conversation over this new blank session.
     setSearchParams({}, { replace: true })
+    // Keep lastStored so Resume still opens the previous thread.
   }
 
   const handleSelectProvider = (provider: Provider) => {
@@ -1002,7 +1056,6 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     )
     if (!target) return
 
-    const previousTarget = selectedChatTargetRef.current
     track(PROVIDER_SELECTED_EVENT, {
       provider_id: target.id,
       provider_type: target.kind === 'acp' ? 'acp' : target.type,
@@ -1022,14 +1075,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
       })
     })
 
-    if (
-      previousTarget &&
-      (previousTarget.kind !== target.kind ||
-        previousTarget.id !== target.id) &&
-      messagesRef.current.length > 0
-    ) {
-      resetConversationState()
-    }
+    // Keep the open thread when switching models.
   }
 
   const getActionForMessage = (message: UIMessage) => {

@@ -232,7 +232,10 @@ fn safe_prefix(text: &str, max_chars: usize) -> String {
         return text.to_string();
     }
     let mut end = max_chars;
-    while !text.is_char_boundary(end) {
+    for _ in 0..4 {
+        if text.is_char_boundary(end) {
+            break;
+        }
         end = end.saturating_sub(1);
     }
     text[..end].to_string()

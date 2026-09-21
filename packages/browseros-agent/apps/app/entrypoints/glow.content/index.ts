@@ -187,10 +187,8 @@ function fireConfetti(): void {
 }
 
 function stopGlow(): void {
-  const overlay = document.getElementById(GLOW_OVERLAY_ID)
-  if (overlay) {
-    overlay.remove()
-  }
+  document.getElementById(GLOW_OVERLAY_ID)?.remove()
+  document.getElementById(GLOW_STOP_BTN_ID)?.remove()
 }
 
 export default defineContentScript({

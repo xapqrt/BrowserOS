@@ -27,6 +27,7 @@ import { logger } from './lib/logger'
 import { selfHealMcpLinks } from './lib/mcp-manager'
 import { metrics } from './lib/metrics'
 import { isPortInUseError } from './lib/port-binding'
+import { applySystemProxy } from './lib/system-proxy'
 import { Sentry } from './lib/sentry'
 import { VERSION } from './version'
 
@@ -39,6 +40,7 @@ export class Application {
 
   async start(): Promise<void> {
     logger.info(`Starting BrowserOS Server v${VERSION}`)
+    applySystemProxy()
     logger.debug('Directory config', {
       executionDir: path.resolve(this.config.executionDir),
       resourcesDir: path.resolve(this.config.resourcesDir),
@@ -66,7 +68,7 @@ export class Application {
     try {
       await createHttpServer({
         port: this.config.serverPort,
-        host: '0.0.0.0',
+        host: this.config.mcpAllowRemote ? '0.0.0.0' : '127.0.0.1',
         version: VERSION,
         browser,
         browserSession,

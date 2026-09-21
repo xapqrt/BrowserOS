@@ -28,6 +28,8 @@ import { UserActionMessage } from './UserActionMessage'
 export interface ChatMessagesProps {
   messages: UIMessage[]
   status: 'streaming' | 'submitted' | 'ready' | 'error'
+  /** When set, do not keep the bounce-dots spinner over a real LLM error. */
+  hasError?: boolean
   getActionForMessage?: (message: UIMessage) => ChatAction | undefined
   liked: Record<string, boolean>
   onClickLike: (messageId: string) => void
@@ -42,6 +44,7 @@ export interface ChatMessagesProps {
 export const ChatMessages: FC<ChatMessagesProps> = ({
   messages,
   status,
+  hasError,
   getActionForMessage,
   liked,
   disliked,
@@ -52,7 +55,8 @@ export const ChatMessages: FC<ChatMessagesProps> = ({
   onTakeSurvey,
   onDismissJtbdPopup,
 }) => {
-  const isStreaming = status === 'streaming' || status === 'submitted'
+  const isStreaming =
+    !hasError && (status === 'streaming' || status === 'submitted')
 
   return (
     <>
@@ -159,23 +163,27 @@ export const ChatMessages: FC<ChatMessagesProps> = ({
               showDontShowAgain={showDontShowAgain}
             />
           )}
+          {isStreaming &&
+          !messages.some((message, index) => {
+            if (index !== messages.length - 1) return false
+            return getMessageSegments(message, true, true).some(
+              (segment) => segment.type === 'tool-batch',
+            )
+          }) ? (
+            <div className="flex animate-fadeInUp gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent-orange)] text-white">
+                <Bot className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex items-center gap-1 rounded-xl rounded-tl-none border border-border/50 bg-card px-3 py-2.5 shadow-sm">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--accent-orange)] [animation-delay:-0.3s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--accent-orange)] [animation-delay:-0.15s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--accent-orange)]" />
+              </div>
+            </div>
+          ) : null}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
-
-      {isStreaming && (
-        <div className="flex animate-fadeInUp gap-2 px-3">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent-orange)] text-white">
-            <Bot className="h-3.5 w-3.5" />
-          </div>
-          <div className="flex items-center gap-1 rounded-xl rounded-tl-none border border-border/50 bg-card px-3 py-2.5 shadow-sm">
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--accent-orange)] [animation-delay:-0.3s]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--accent-orange)] [animation-delay:-0.15s]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--accent-orange)]" />
-          </div>
-        </div>
-      )}
-      <div />
     </>
   )
 }

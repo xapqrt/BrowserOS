@@ -98,6 +98,7 @@ export function createMcpRoutes(deps: McpRouteDeps) {
     c.json({
       status: 'ok',
       message: 'MCP server is running. Use POST to interact.',
+      keepAlive: true,
     }),
   )
 

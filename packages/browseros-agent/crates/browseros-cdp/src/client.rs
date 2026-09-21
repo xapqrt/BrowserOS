@@ -78,7 +78,8 @@ impl Default for ConnectOptions {
             reconnect_delay: Duration::from_secs(5),
             keepalive_interval: Duration::from_secs(30),
             keepalive_timeout: Duration::from_secs(10),
-            request_timeout: Duration::from_secs(60),
+            // Long enough for a 30s evaluate race plus a follow-up poll (#2703).
+            request_timeout: Duration::from_secs(120),
             connect_max_retries: 3,
             reconnect_max_retries: 3,
             reconnect_policy: ReconnectPolicy::Exit(1),

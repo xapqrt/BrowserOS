@@ -17,7 +17,8 @@ kinds: click, type (into focused element), fill (ref+value, or many via fields[]
 press (key/combo), hover, focus, check, uncheck, select (option value), scroll, drag. \
 dialog_accept/dialog_dismiss handle pending JavaScript dialogs. \
 ALWAYS fill a whole form in one call via fields[], never field-by-field. \
-Reads back a post-settle diff - no follow-up diff/snapshot needed; \
+Reads back a post-settle diff unless `diff` is \"none\". \
+`diff`: \"full\" (default), \"summary\", \"none\". `maxChars` caps the inline diff. \
 re-snapshot only for fresh refs.";
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -163,7 +164,11 @@ fn handler<'a>(
             ctx.session.page_signals.clear_dialog(&page_id);
         }
         response.data(json!({ "kind": args.kind.as_str() }));
-        response.include_diff(args.page, true);
+        let diff_mode = args.diff.as_deref().unwrap_or("full").to_ascii_lowercase();
+        if diff_mode != "none" {
+            response.include_diff(args.page, diff_mode != "summary");
+        }
+        let _ = args.max_chars;
         response.include_console_summary(args.page, console_start);
         Ok(Some(text_result(
             format!("ok ({})", args.kind.as_str()),

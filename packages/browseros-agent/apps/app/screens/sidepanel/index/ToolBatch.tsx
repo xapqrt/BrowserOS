@@ -35,6 +35,15 @@ export const ToolBatch: FC<ToolBatchProps> = ({
   const shouldBeOpen = isLastMessage && isLastBatch && isStreaming
   const [isOpen, setIsOpen] = useState(shouldBeOpen)
   const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  // Freeze open-clock across parent remounts of the same first toolCallId.
+  const [openedAt] = useState(() => Date.now())
+  const [nowTick, setNowTick] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!isStreaming) return
+    const id = window.setInterval(() => setNowTick(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [isStreaming])
 
   useEffect(() => {
     if (isLastMessage && !hasUserInteracted) {
@@ -47,7 +56,15 @@ export const ToolBatch: FC<ToolBatchProps> = ({
   }, [isStreaming, isLastMessage, isLastBatch, hasUserInteracted])
 
   const completedCount = tools.filter((t) => isToolCompleted(t.state)).length
-  const triggerTitle = `${completedCount}/${tools.length} actions completed`
+  const elapsedSec = Math.max(0, Math.floor((nowTick - openedAt) / 1000))
+  const names = tools
+    .slice(0, 2)
+    .map((t) => formatToolName(t.toolName))
+    .join(', ')
+  const extra = tools.length > 2 ? ` +${tools.length - 2}` : ''
+  const triggerTitle = isStreaming
+    ? `${names}${extra} · ${elapsedSec}s`
+    : `${completedCount}/${tools.length} · ${names}${extra}`
 
   const onManualToggle = (newState: boolean) => {
     setHasUserInteracted(true)

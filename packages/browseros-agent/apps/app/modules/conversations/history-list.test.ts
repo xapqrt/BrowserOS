@@ -79,6 +79,11 @@ describe('local history navigation', () => {
 
   it('handles untitled, empty and unmatched histories', () => {
     expect(conversationTitle('  ')).toBe('Untitled conversation')
+    expect(conversationTitle('ok')).toBe('Continued chat')
+    expect(conversationTitle('Thanks!')).toBe('Continued chat')
+    expect(conversationTitle('Summarize this GitHub PR for me')).toBe(
+      'Summarize this GitHub PR for me',
+    )
     expect(historyList([], '', 6, now)).toEqual({
       groups: [],
       total: 0,

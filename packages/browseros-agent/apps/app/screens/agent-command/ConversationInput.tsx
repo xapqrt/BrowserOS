@@ -176,7 +176,7 @@ function CalmContextControls({
             >
               <TargetPillIcon provider={selectedProvider} />
               <span className="truncate font-medium font-mono text-[11.5px] tracking-[-0.01em]">
-                {selectedProvider.name}
+                {selectedProvider.modelLabel ?? selectedProvider.name}
               </span>
               <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
             </button>

@@ -351,6 +351,24 @@ impl PageManager {
         Ok(page_id)
     }
 
+    pub async fn activate(&self, page_id: PageId) -> Result<PageInfo, CoreError> {
+        self.ensure_connected().await?;
+        let info = self
+            .refresh(page_id.clone())
+            .await?
+            .ok_or_else(|| CoreError::UnknownPage(page_id.clone()))?;
+        let root = ProtocolSession::root(self.cdp.clone());
+        let _: Value = root
+            .send(
+                "Browser.activateTab",
+                json!({ "tabId": info.tab_id.0 }),
+            )
+            .await?;
+        self.refresh(page_id)
+            .await?
+            .ok_or_else(|| CoreError::UnknownPage(info.page_id))
+    }
+
     pub async fn close(&self, page_id: PageId) -> Result<(), CoreError> {
         let info = self
             .state

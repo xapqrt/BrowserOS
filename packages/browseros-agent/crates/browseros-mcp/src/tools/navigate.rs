@@ -7,6 +7,8 @@ use serde_json::json;
 
 const DESCRIPTION: &str = "\
 Navigate a page: load a url, or go back/forward/reload. \
+Waits at most ~8s for document interactive (not the tab spinner). \
+SPAs/ads often never reach complete — then work with the current DOM. \
 Returns a fresh snapshot of the resulting page \
 (navigation invalidates refs, so old [ref=eN] handles no longer apply).";
 

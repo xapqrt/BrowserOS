@@ -40,5 +40,8 @@ export function isTrustedAppRequest(c: Context<Env>): boolean {
   const origin = c.req.header('origin')
   if (origin) return isTrustedAppOrigin(origin)
 
-  return ['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)
+  // Origin-less GET/HEAD used to pass. That let a webpage (or curl) on the
+  // same machine read conversations and schedules (#2648). OPTIONS stays
+  // open for CORS preflight.
+  return c.req.method === 'OPTIONS'
 }

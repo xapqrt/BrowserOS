@@ -6,7 +6,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import type { ChatMode } from '@/modules/chat/chat-types'
 
 export interface ChatModeToggleProps {
@@ -29,28 +28,26 @@ export const ChatModeToggle: FC<ChatModeToggleProps> = ({
             onClick={() => onModeChange(isAgentMode ? 'chat' : 'agent')}
             className={cn(
               'flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 font-medium text-xs transition-all',
-              isAgentMode
-                ? 'border-border/50 bg-muted text-muted-foreground hover:text-foreground'
-                : 'border-[var(--accent-orange)]/30 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
+              'border-[var(--accent-orange)]/30 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
             )}
           >
             {isAgentMode ? (
               <>
                 <MousePointer2 className="h-3 w-3" />
-                <span>Agent Mode ON</span>
+                <span>Agent</span>
               </>
             ) : (
               <>
                 <MessageSquare className="h-3 w-3" />
-                <span>Chat Mode ON</span>
+                <span>Chat</span>
               </>
             )}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[220px]">
+        <TooltipContent side="top" className="max-w-[240px]">
           {isAgentMode
-            ? 'AI can browse, click, and navigate'
-            : 'AI can only read, cannot click or navigate'}
+            ? 'Agent: can open tabs, click, and fill forms. Switch to Chat for Q&A only.'
+            : 'Chat: answers questions, will not click or navigate. Switch to Agent to browse.'}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

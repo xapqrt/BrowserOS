@@ -2,8 +2,18 @@ import type { ServerConversationSummary } from './conversations.hooks'
 
 export const HISTORY_PAGE_SIZE = 6
 
+const FILLER =
+  /^(ok|okay|yes|yeah|yep|sure|thanks|thank you|thx|ty|k|kk|hmm|lol|cool|got it|please|continue|go on|done|wait)[.!?]*$/i
+
+/** History row label: skip one-word acks so the list is not all "ok". */
 export function conversationTitle(lastUserMessage: string): string {
-  return lastUserMessage.trim() || 'Untitled conversation'
+  const trimmed = lastUserMessage.trim().replace(/\s+/g, ' ')
+  if (!trimmed) return 'Untitled conversation'
+  if (trimmed.length < 4 || FILLER.test(trimmed)) return 'Continued chat'
+  const line = trimmed.split('\n')[0] ?? trimmed
+  const sentence = line.split(/(?<=[.!?])\s/)[0] ?? line
+  const base = sentence.length >= 8 ? sentence : line
+  return base.length > 72 ? `${base.slice(0, 69)}…` : base
 }
 
 /** Group by local calendar days, not elapsed hours (which breaks at midnight/DST). */

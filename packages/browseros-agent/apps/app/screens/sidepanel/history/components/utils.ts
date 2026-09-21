@@ -7,13 +7,14 @@ import type {
 } from './types'
 
 export const TIME_GROUP_LABELS: Record<TimeGroup, string> = {
+  pinned: 'Pinned',
   today: 'Today',
   thisWeek: 'This Week',
   thisMonth: 'This Month',
   older: 'Older',
 }
 
-const getTimeGroup = (timestamp: number): TimeGroup => {
+const getTimeGroup = (timestamp: number): Exclude<TimeGroup, 'pinned'> => {
   const date = dayjs(timestamp)
   const now = dayjs()
 
@@ -37,8 +38,10 @@ export const extractLastUserMessage = (messages: UIMessage[]): string => {
 
 export const groupConversations = (
   conversations: HistoryConversation[],
+  pinnedIds?: ReadonlySet<string>,
 ): GroupedConversations => {
   const groups: GroupedConversations = {
+    pinned: [],
     today: [],
     thisWeek: [],
     thisMonth: [],
@@ -46,6 +49,10 @@ export const groupConversations = (
   }
 
   for (const conversation of conversations) {
+    if (pinnedIds?.has(conversation.id)) {
+      groups.pinned.push(conversation)
+      continue
+    }
     const group = getTimeGroup(conversation.lastMessagedAt)
     groups[group].push(conversation)
   }

@@ -15,11 +15,11 @@ export type ConversationProps = ComponentProps<typeof StickToBottom>
 export const Conversation = ({ className, ...props }: ConversationProps) => (
   <StickToBottom
     className={cn(
-      'styled-scrollbar relative flex-1 overflow-y-hidden',
+      'styled-scrollbar relative flex-1 overflow-y-auto',
       className,
     )}
-    initial="smooth"
-    resize="smooth"
+    initial="instant"
+    resize="instant"
     role="log"
     {...props}
   />
@@ -106,6 +106,8 @@ export const ConversationScrollButton = ({
         size="icon"
         type="button"
         variant="outline"
+        title="Jump to latest"
+        aria-label="Jump to latest"
         {...props}
       >
         <ArrowDownIcon className="size-4" />

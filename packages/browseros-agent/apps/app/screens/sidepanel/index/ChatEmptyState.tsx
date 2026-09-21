@@ -1,5 +1,6 @@
 import { ArrowRight, Pencil, Sparkles } from 'lucide-react'
 import { type FC, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { sentry } from '@/lib/sentry/sentry'
 import { cn } from '@/lib/utils'
 import type { ChatMode } from '@/modules/chat/chat-types'
@@ -15,6 +16,7 @@ export interface ChatEmptyStateProps {
   mode: ChatMode
   mounted: boolean
   onSuggestionClick: (suggestion: string) => void
+  resumeConversationId?: string | null
 }
 
 /** Shared by side-panel and new-tab chat; mode changes discard unsaved drafts. */
@@ -26,6 +28,7 @@ const ModeEmptyState: FC<ChatEmptyStateProps> = ({
   mode,
   mounted,
   onSuggestionClick,
+  resumeConversationId,
 }) => {
   const { prompts, isLoading, loadError, retry } = useStarterPrompts(mode)
   const [editing, setEditing] = useState(false)
@@ -84,9 +87,19 @@ const ModeEmptyState: FC<ChatEmptyStateProps> = ({
             </h2>
             <p className="max-w-[230px] text-muted-foreground text-xs">
               {mode === 'chat'
-                ? 'Ask questions about the current page or any topic'
-                : 'Let AI automate tasks and browse for you'}
+                ? 'Ask about this page. History lists panel and new-tab chats together.'
+                : 'Agent can click and open tabs. History lists panel and new-tab chats together.'}
             </p>
+            {resumeConversationId ? (
+              <p className="mt-2">
+                <Link
+                  to={`/?conversationId=${resumeConversationId}`}
+                  className="text-primary text-xs underline"
+                >
+                  Resume last chat
+                </Link>
+              </p>
+            ) : null}
           </div>
           <div className="group/prompts mt-6 flex w-full max-w-[320px] flex-col gap-2">
             {STARTER_PROMPT_SLOTS.map((slot) => (

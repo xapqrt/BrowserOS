@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { createBrowserOSAction } from '@/lib/chat-actions/types'
 import {
   SIDEPANEL_AI_TRIGGERED_EVENT,
@@ -11,6 +12,8 @@ import {
 } from '@/lib/constants/analyticsEvents'
 import { track } from '@/lib/metrics/track'
 import { useChatSessionContext } from '@/modules/chat/chat-session-context'
+import { readStoredConversationId } from '@/modules/chat/chat-session.hooks'
+import { useServerConversations } from '@/modules/conversations/conversations.hooks'
 import type { ChatMode } from '@/modules/chat/chat-types'
 import { useJtbdPopup } from '@/modules/jtbd-popup/jtbd-popup.hooks'
 import { buildChatErrorProps } from './Chat.helpers'
@@ -42,6 +45,9 @@ export const Chat = () => {
     onClickDislike,
     isRestoringConversation,
     isIncognito,
+    restoreError,
+    retryRestoreConversation,
+    conversationId,
     retryLastTurn,
   } = useChatSessionContext()
 
@@ -54,6 +60,14 @@ export const Chat = () => {
     onDismiss: onDismissJtbdPopup,
   } = useJtbdPopup()
 
+  const { data: historyRows = [] } = useServerConversations()
+  const knownHistoryIds = new Set(historyRows.map((row) => row.id))
+  const lastGoodId = (() => {
+    const stored = readStoredConversationId()
+    if (!stored || stored === conversationId) return null
+    if (knownHistoryIds.size > 0 && !knownHistoryIds.has(stored)) return null
+    return stored
+  })()
   const [input, setInput] = useState('')
   const [attachedTabs, setAttachedTabs] = useState<chrome.tabs.Tab[]>([])
   const [mounted, setMounted] = useState(false)
@@ -62,17 +76,8 @@ export const Chat = () => {
     setMounted(true)
   }, [])
 
-  useEffect(() => {
-    ;(async () => {
-      const currentTab = (
-        await chrome.tabs.query({
-          active: true,
-          currentWindow: true,
-        })
-      ).filter((tab) => tab.url?.startsWith('http'))
-      setAttachedTabs(currentTab)
-    })()
-  }, [])
+  // Do not auto-attach the current tab. That left leftover tabs on the next
+  // prompt and made it look like the composer was stuck to the last page.
 
   // Trigger JTBD popup when AI finishes responding
   const previousChatStatus = useRef(status)
@@ -84,7 +89,7 @@ export const Chat = () => {
     const aiJustFinished = aiWasProcessing && status === 'ready'
 
     if (aiJustFinished && messages.length > 0) {
-      triggerIfEligible()
+      void triggerIfEligible
     }
     previousChatStatus.current = status
   }, [status])
@@ -96,7 +101,7 @@ export const Chat = () => {
 
   const handleStop = () => {
     track(SIDEPANEL_STOP_CLICKED_EVENT)
-    stop()
+    void stop()
   }
 
   const toggleTabSelection = (tab: chrome.tabs.Tab) => {
@@ -162,20 +167,42 @@ export const Chat = () => {
   return (
     <>
       <main className="mt-4 flex h-full flex-1 flex-col space-y-4 overflow-y-auto">
-        {isRestoringConversation ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        {isRestoringConversation && !restoreError ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="text-xs">Opening this chat…</p>
+          </div>
+        ) : restoreError && messages.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="text-muted-foreground text-sm">{restoreError}</p>
+            <button
+              type="button"
+              className="text-primary text-sm underline"
+              onClick={() => retryRestoreConversation()}
+            >
+              Try again
+            </button>
+            {lastGoodId ? (
+              <Link
+                to={`/?conversationId=${lastGoodId}`}
+                className="text-primary text-sm underline"
+              >
+                Open last saved chat
+              </Link>
+            ) : null}
           </div>
         ) : messages.length === 0 ? (
           <ChatEmptyState
             mode={mode}
             mounted={mounted}
             onSuggestionClick={handleSuggestionClick}
+            resumeConversationId={lastGoodId}
           />
         ) : (
           <ChatMessages
             messages={messages}
             status={status}
+            hasError={!!chatError}
             getActionForMessage={getActionForMessage}
             liked={liked}
             onClickLike={onClickLike}

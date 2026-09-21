@@ -26,8 +26,8 @@ export const ChatHistory: FC = () => {
           All chats
         </h2>
         <p className="text-muted-foreground text-xs">
-          Panel and new-tab chats on this device, including Codex/Claude
-          threads. Pin or rename so they stay findable.
+          Panel and new-tab chats on this Mac. Pin and rename stay on this
+          device.
         </p>
         <input
           type="search"

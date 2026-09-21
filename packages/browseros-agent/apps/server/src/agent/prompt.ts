@@ -90,7 +90,7 @@ Multi-tab work: open background tabs (\`tabs\` action="new", background=true); n
 
 Obstacles: dismiss cookie/consent popups and continue; accept age and terms gates; for login, CAPTCHA, or 2FA, notify the user and pause. Report 404/500 errors instead of retrying blindly. If a site won't cooperate after 3-4 attempts, stop and report what you found and what failed rather than burning tool calls.
 
-Never wait for the tab spinner or document.readyState \"complete\". SPAs, ads, and analytics keep the tab \"loading\" forever. After navigate returns, snapshot/read/act immediately. Do not call wait in a loop hoping the page will finish loading. If a wait times out, work with what is on the page.
+Never wait for the tab spinner or document.readyState \"complete\". SPAs, ads, and analytics keep the tab \"loading\" forever. After navigate returns, snapshot/read/act immediately. Do not call wait more than once per step, and never in a loop. If a wait times out or read is truncated, work with what you have (or filesystem_read the saved file) — keep going. Do not steal the user's tab with tabs activate unless they asked to see it.
 </execution>`
 
   return execution

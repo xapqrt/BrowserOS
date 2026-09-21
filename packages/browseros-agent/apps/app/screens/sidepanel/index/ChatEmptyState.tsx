@@ -87,8 +87,8 @@ const ModeEmptyState: FC<ChatEmptyStateProps> = ({
             </h2>
             <p className="max-w-[230px] text-muted-foreground text-xs">
               {mode === 'chat'
-                ? 'Ask about this page. This panel keeps its own history from the new-tab chat.'
-                : 'Agent can click and open tabs. History here is this side panel, not the new-tab page.'}
+                ? 'Ask about this page. History lists panel and new-tab chats together.'
+                : 'Agent can click and open tabs. History lists panel and new-tab chats together.'}
             </p>
             {resumeConversationId ? (
               <p className="mt-2">

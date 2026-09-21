@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import type { FC } from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { useSessionInfo } from '@/lib/auth/sessionStorage'
 import { getQueryKeyFromDocument } from '@/lib/graphql/getQueryKeyFromDocument'
 import { conversationIdFromWindowLocation } from '@/modules/chat/chat-session.hooks'
 import { useChatSessionContext } from '@/modules/chat/chat-session-context'
@@ -101,7 +102,7 @@ export const LocalChatHistory: FC<{ search: string }> = ({ search }) => {
       activeConversationId={activeConversationId}
       onDelete={(id) => {
         deleteConversation.mutate(id)
-        deleteCloud.mutate({ rowId: id })
+        if (userId) deleteCloud.mutate({ rowId: id })
       }}
       emptyMessage="No chats on this device yet. Send a message, then they show up here."
       titles={titles}

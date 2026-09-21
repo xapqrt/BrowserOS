@@ -300,8 +300,8 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     agentUrlRef.current = agentServerUrl
   }, [agentServerUrl])
 
-  const canSend =
-    !isLoadingAgentUrl && !agentUrlError && !!agentServerUrl
+  // Queue until the local server URL is known; do not grey out Send.
+  const canSend = !agentUrlError
 
   const providers: Provider[] = chatTargets.map(toProviderOption)
 
@@ -608,6 +608,27 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     // no longer a lifecycle signal.
     const stoppedConversationId = conversationIdRef.current
     const detaching = detachView()
+    const tabKey = pendingSelectionTabKeyRef.current
+    if (tabKey) {
+      pendingSelectionTabKeyRef.current = null
+      delete selectionMapRef.current[tabKey]
+      void selectedTextStorage.getValue().then((map) => {
+        if (!map[tabKey]) return
+        const { [tabKey]: _, ...rest } = map
+        void selectedTextStorage.setValue(rest)
+      })
+    }
+    void chrome.tabs.query({ currentWindow: true }).then((tabs) => {
+      for (const tab of tabs) {
+        if (tab.id === undefined) continue
+        void chrome.tabs
+          .sendMessage(tab.id, {
+            conversationId: stoppedConversationId,
+            isActive: false,
+          })
+          .catch(() => undefined)
+      }
+    })
     try {
       const serverUrl =
         agentUrlRef.current ?? (await resolveAgentServerUrlWithRetry())

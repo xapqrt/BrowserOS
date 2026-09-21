@@ -52,6 +52,8 @@ export const ConversationItem: FC<ConversationItemProps> = ({
   onTogglePin,
 }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
   const label =
     customTitle?.trim() || conversationTitle(conversation.lastUserMessage)
   const relativeTimeAgo = dayjs(conversation.lastMessagedAt).fromNow()
@@ -64,12 +66,16 @@ export const ConversationItem: FC<ConversationItemProps> = ({
     setShowDeleteDialog(true)
   }
 
+  const commitRename = () => {
+    onRename?.(conversation.id, draft.trim())
+    setEditing(false)
+  }
+
   const handleRename = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const next = window.prompt('Name this chat', label)
-    if (next == null) return
-    onRename?.(conversation.id, next.trim())
+    setDraft(label)
+    setEditing(true)
   }
 
   const handlePin = (e: React.MouseEvent) => {
@@ -92,10 +98,30 @@ export const ConversationItem: FC<ConversationItemProps> = ({
         }`}
       >
         <div className="min-w-0 flex-1 overflow-hidden">
-          <p className="truncate font-medium text-foreground text-sm">
-            {pinned ? '📌 ' : ''}
-            {label}
-          </p>
+          {editing ? (
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={commitRename}
+              onClick={(event) => event.preventDefault()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  commitRename()
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  setEditing(false)
+                }
+              }}
+              className="w-full rounded border border-border bg-background px-1 py-0.5 font-medium text-foreground text-sm"
+            />
+          ) : (
+            <p className="truncate font-medium text-foreground text-sm">
+              {pinned ? '📌 ' : ''}
+              {label}
+            </p>
+          )}
           <p className="text-muted-foreground text-xs">
             {relativeTimeAgo}
             {where ? ` · ${where}` : ''}

@@ -15,11 +15,14 @@ export function useAgentServerUrl(): UseAgentServerUrlResult {
 
   useEffect(() => {
     let cancelled = false
+    let healthy = false
 
     async function loadUrl() {
+      if (healthy) return
       try {
         const url = await resolveAgentServerUrlWithRetry()
         if (!cancelled) {
+          healthy = true
           setState({ baseUrl: url, isLoading: false, error: null })
         }
       } catch (e) {
@@ -33,9 +36,13 @@ export function useAgentServerUrl(): UseAgentServerUrlResult {
     }
 
     void loadUrl()
+    const id = window.setInterval(() => {
+      void loadUrl()
+    }, 4_000)
 
     return () => {
       cancelled = true
+      window.clearInterval(id)
     }
   }, [])
 

@@ -91,12 +91,7 @@ export const ChatFooter: FC<ChatFooterProps> = ({
       }
     }
 
-    if (document.hasFocus()) {
-      focusInput()
-    }
-
-    window.addEventListener('focus', focusInput)
-    return () => window.removeEventListener('focus', focusInput)
+    focusInput()
   }, [])
 
   const connectedManagedServers = mcpServers.filter((s) => {

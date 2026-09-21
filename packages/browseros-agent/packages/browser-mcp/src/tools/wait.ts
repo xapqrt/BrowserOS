@@ -48,7 +48,7 @@ export const wait = defineTool({
     const value = args.value === undefined ? undefined : String(args.value)
 
     if (args.for === 'time') {
-      const waitMs = Math.min(parseWaitMs(value, DEFAULT_PAUSE_MS), timeout)
+      const waitMs = Math.min(parseWaitMs(value, DEFAULT_PAUSE_MS), 2_000, timeout)
       await abortableDelay(waitMs, ctx.signal)
       return textResult(`waited ${waitMs}ms`, {
         matched: true,

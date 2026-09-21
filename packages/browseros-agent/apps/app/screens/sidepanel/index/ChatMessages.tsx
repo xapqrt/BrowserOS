@@ -163,7 +163,13 @@ export const ChatMessages: FC<ChatMessagesProps> = ({
               showDontShowAgain={showDontShowAgain}
             />
           )}
-          {isStreaming ? (
+          {isStreaming &&
+          !messages.some((message, index) => {
+            if (index !== messages.length - 1) return false
+            return getMessageSegments(message, true, true).some(
+              (segment) => segment.type === 'tool-batch',
+            )
+          }) ? (
             <div className="flex animate-fadeInUp gap-2">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent-orange)] text-white">
                 <Bot className="h-3.5 w-3.5" />

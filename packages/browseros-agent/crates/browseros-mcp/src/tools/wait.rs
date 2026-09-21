@@ -79,7 +79,7 @@ fn handler<'a>(
         let value = args.value.as_ref().map(wait_value_to_string);
         if matches!(args.wait_for, WaitFor::Time) {
             let wait_ms =
-                parse_wait_ms(value.as_deref(), DEFAULT_PAUSE_MS).min(MAX_WAIT_TIMEOUT_MS);
+                parse_wait_ms(value.as_deref(), DEFAULT_PAUSE_MS).min(2_000);
             abortable_delay(ctx, Duration::from_millis(wait_ms)).await?;
             return Ok(Some(text_result(
                 format!("waited {wait_ms}ms"),

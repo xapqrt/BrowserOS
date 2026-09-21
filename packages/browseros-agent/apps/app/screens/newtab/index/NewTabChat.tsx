@@ -147,28 +147,50 @@ export const NewTabChat: FC = () => {
       ? storedId
       : null
 
-  if (!selectedProvider) return null
-
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden">
-      <ChatHeader
-        selectedProvider={selectedProvider}
-        providers={providers}
-        onSelectProvider={handleSelectProvider}
-        onNewConversation={handleNewConversation}
-        hasMessages={messages.length > 0}
-        hideHistory
-        resumeConversationId={lastGoodId}
-        className="shrink-0 px-4 sm:px-8"
-      />
+      {selectedProvider ? (
+        <ChatHeader
+          selectedProvider={selectedProvider}
+          providers={providers}
+          onSelectProvider={handleSelectProvider}
+          onNewConversation={handleNewConversation}
+          hasMessages={messages.length > 0}
+          hideHistory
+          resumeConversationId={lastGoodId}
+          className="shrink-0 px-4 sm:px-8"
+        />
+      ) : (
+        <div className="flex h-12 shrink-0 items-center px-4 text-muted-foreground text-xs sm:px-8">
+          Starting…
+        </div>
+      )}
 
       {/* Keep transcript and composer widths in sync; only the header spans the page. */}
       <main className="styled-scrollbar [&_[data-streamdown='code-block']]:!max-w-full [&_[data-streamdown='code-block']]:!w-auto [&_[data-streamdown='table-wrapper']]:!max-w-full [&_[data-streamdown='table-wrapper']]:!w-auto mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col space-y-4 overflow-y-auto overflow-x-hidden px-4 pt-4 sm:w-[calc(100%-4rem)] [&_[data-streamdown='code-block']]:overflow-x-auto [&_[data-streamdown='table-wrapper']]:overflow-x-auto">
-        {isRestoringConversation ? (
+        {isRestoringConversation && !restoreError ? (
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : messages.length === 0 && !restoreError ? (
+        ) : restoreError && messages.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="text-muted-foreground text-sm">{restoreError}</p>
+            <button
+              type="button"
+              className="text-primary text-sm underline"
+              onClick={() => retryRestoreConversation()}
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              className="text-primary text-sm underline"
+              onClick={handleNewConversation}
+            >
+              New conversation
+            </button>
+          </div>
+        ) : messages.length === 0 ? (
           <ChatEmptyState
             mode={mode}
             mounted={mounted}
@@ -190,6 +212,7 @@ export const NewTabChat: FC = () => {
             <ChatMessages
               messages={messages}
               status={status}
+              hasError={!!chatError}
               getActionForMessage={getActionForMessage}
               liked={liked}
               onClickLike={onClickLike}
@@ -201,27 +224,6 @@ export const NewTabChat: FC = () => {
               onDismissJtbdPopup={() => {}}
             />
           </>
-        )}
-        {restoreError && (
-          <div role="alert" className="rounded-lg border p-4 text-sm">
-            <p>{restoreError}</p>
-            <div className="mt-3 flex gap-4">
-              <button
-                type="button"
-                onClick={retryRestoreConversation}
-                className="underline underline-offset-2"
-              >
-                Try again
-              </button>
-              <button
-                type="button"
-                onClick={handleNewConversation}
-                className="underline underline-offset-2"
-              >
-                New conversation
-              </button>
-            </div>
-          </div>
         )}
         {agentUrlError && (
           <ChatError

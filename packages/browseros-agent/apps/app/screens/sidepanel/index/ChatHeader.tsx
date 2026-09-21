@@ -42,6 +42,10 @@ export interface ChatHeaderProps {
   hideHistory?: boolean
   /** Lets the full-page chat opt into spacing without changing the sidepanel. */
   className?: string
+  /** Shown so you can tell this is the same chat, not a new one. */
+  threadTitle?: string
+  /** Last stored id — Resume instead of only New chat. */
+  resumeConversationId?: string | null
 }
 
 export const ChatHeader: FC<ChatHeaderProps> = ({
@@ -52,6 +56,8 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
   hasMessages,
   hideHistory,
   className,
+  threadTitle,
+  resumeConversationId,
 }) => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -89,15 +95,33 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
           </button>
         </ChatProviderSelector>
         {selectedProvider.type === 'browseros' && <CreditsBadgeWrapper />}
+        {hasMessages && threadTitle ? (
+          <span
+            className="hidden max-w-[140px] truncate text-muted-foreground text-xs sm:inline"
+            title={threadTitle}
+          >
+            {threadTitle}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-1">
+        {!isHistoryPage && !hasMessages && resumeConversationId ? (
+          <Link
+            to={`/?conversationId=${resumeConversationId}`}
+            className="cursor-pointer rounded-lg px-2 py-1.5 text-muted-foreground text-xs transition-colors hover:bg-muted/50 hover:text-foreground"
+            title="Resume last chat"
+          >
+            Resume
+          </Link>
+        ) : null}
+
         {!isHistoryPage && hasMessages && (
           <button
             type="button"
             onClick={onNewConversation}
             className="cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            title="New conversation"
+            title="Start a new chat (keeps this one in History)"
           >
             <Plus className="h-4 w-4" />
           </button>

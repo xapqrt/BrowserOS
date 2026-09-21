@@ -1,5 +1,6 @@
 import type { FC } from 'react'
 import { useMemo } from 'react'
+import { conversationIdFromWindowLocation } from '@/modules/chat/chat-session.hooks'
 import { useChatSessionContext } from '@/modules/chat/chat-session-context'
 import {
   useDeleteServerConversation,
@@ -12,7 +13,9 @@ import { groupConversations } from '../components/utils'
 export const LocalChatHistory: FC = () => {
   const { data: serverConversations = [] } = useServerConversations()
   const deleteConversation = useDeleteServerConversation()
-  const { conversationId: activeConversationId } = useChatSessionContext()
+  const { conversationId: sessionConversationId } = useChatSessionContext()
+  const activeConversationId =
+    conversationIdFromWindowLocation() ?? sessionConversationId
 
   const conversations = useMemo<HistoryConversation[]>(() => {
     return serverConversations.map((conversation) => ({

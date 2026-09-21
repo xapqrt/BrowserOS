@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { conversationTitle } from '@/modules/conversations/history-list'
 import type { HistoryConversation } from './types'
 
 dayjs.extend(relativeTime)
@@ -29,7 +30,7 @@ export const ConversationItem: FC<ConversationItemProps> = ({
   isActive,
 }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const label = conversation.lastUserMessage
+  const label = conversationTitle(conversation.lastUserMessage)
   const relativeTimeAgo = dayjs(conversation.lastMessagedAt).fromNow()
 
   const handleDeleteClick = (e: React.MouseEvent) => {

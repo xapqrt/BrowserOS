@@ -81,7 +81,7 @@ export const conversationIdFromWindowLocation = (): string | null => {
   return new URLSearchParams(query).get('conversationId')
 }
 
-const readStoredConversationId = (): string | null => {
+export const readStoredConversationId = (): string | null => {
   try {
     return sessionStorage.getItem(LAST_CONVERSATION_STORAGE_KEY)
   } catch {
@@ -304,7 +304,12 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   )
   const [liked, setLiked] = useState<Record<string, boolean>>({})
   const [disliked, setDisliked] = useState<Record<string, boolean>>({})
-  const [conversationId, setConversationId] = useState(crypto.randomUUID())
+  const [conversationId, setConversationId] = useState(
+    () =>
+      conversationIdFromWindowLocation() ||
+      readStoredConversationId() ||
+      crypto.randomUUID(),
+  )
   const conversationIdRef = useRef(conversationId)
   const optionsRef = useRef(options)
   const panelTabRef = useRef<Promise<number | undefined> | undefined>(undefined)

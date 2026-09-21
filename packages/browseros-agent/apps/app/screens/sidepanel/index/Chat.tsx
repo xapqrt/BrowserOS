@@ -11,6 +11,7 @@ import {
 } from '@/lib/constants/analyticsEvents'
 import { track } from '@/lib/metrics/track'
 import { useChatSessionContext } from '@/modules/chat/chat-session-context'
+import { readStoredConversationId } from '@/modules/chat/chat-session.hooks'
 import type { ChatMode } from '@/modules/chat/chat-types'
 import { useJtbdPopup } from '@/modules/jtbd-popup/jtbd-popup.hooks'
 import { buildChatErrorProps } from './Chat.helpers'
@@ -42,6 +43,9 @@ export const Chat = () => {
     onClickDislike,
     isRestoringConversation,
     isIncognito,
+    restoreError,
+    retryRestoreConversation,
+    conversationId,
     retryLastTurn,
   } = useChatSessionContext()
 
@@ -182,6 +186,12 @@ export const Chat = () => {
             mode={mode}
             mounted={mounted}
             onSuggestionClick={handleSuggestionClick}
+            resumeConversationId={
+              readStoredConversationId() &&
+              readStoredConversationId() !== conversationId
+                ? readStoredConversationId()
+                : null
+            }
           />
         ) : (
           <ChatMessages

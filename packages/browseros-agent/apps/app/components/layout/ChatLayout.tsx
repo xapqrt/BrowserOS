@@ -4,6 +4,8 @@ import {
   ChatSessionProvider,
   useChatSessionContext,
 } from '@/modules/chat/chat-session-context'
+import { readStoredConversationId } from '@/modules/chat/chat-session.hooks'
+import { conversationTitle } from '@/modules/conversations/history-list'
 import { ChatHeader } from '@/screens/sidepanel/index/ChatHeader'
 
 const ChatLayoutContent: FC = () => {
@@ -17,6 +19,14 @@ const ChatLayoutContent: FC = () => {
 
   const location = useLocation()
   const isHistoryPage = location.pathname === '/history'
+  const lastUserText = [...messages]
+    .reverse()
+    .find((m) => m.role === 'user')
+    ?.parts.filter((p) => p.type === 'text')
+    .map((p) => ('text' in p ? p.text : ''))
+    .join(' ')
+  const threadTitle = lastUserText ? conversationTitle(lastUserText) : undefined
+  const resumeConversationId = readStoredConversationId()
 
   // Never cover the panel with a full-screen spinner. That made history
   // clicks look dead: the list navigated to `/` and a loader ate the UI.

@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { createBrowserOSAction } from '@/lib/chat-actions/types'
 import {
   SIDEPANEL_AI_TRIGGERED_EVENT,
@@ -182,12 +183,12 @@ export const Chat = () => {
               Try again
             </button>
             {lastGoodId ? (
-              <a
-                href={`#/?conversationId=${lastGoodId}`}
+              <Link
+                to={`/?conversationId=${lastGoodId}`}
                 className="text-primary text-sm underline"
               >
                 Open last saved chat
-              </a>
+              </Link>
             ) : null}
           </div>
         ) : messages.length === 0 ? (

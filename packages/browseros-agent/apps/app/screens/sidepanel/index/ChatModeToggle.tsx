@@ -6,7 +6,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import type { ChatMode } from '@/modules/chat/chat-types'
 
 export interface ChatModeToggleProps {
@@ -29,9 +28,7 @@ export const ChatModeToggle: FC<ChatModeToggleProps> = ({
             onClick={() => onModeChange(isAgentMode ? 'chat' : 'agent')}
             className={cn(
               'flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 font-medium text-xs transition-all',
-              isAgentMode
-                ? 'border-border/50 bg-muted text-muted-foreground hover:text-foreground'
-                : 'border-[var(--accent-orange)]/30 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
+              'border-[var(--accent-orange)]/30 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
             )}
           >
             {isAgentMode ? (

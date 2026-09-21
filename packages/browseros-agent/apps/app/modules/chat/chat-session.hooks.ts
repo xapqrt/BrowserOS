@@ -293,8 +293,8 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     agentUrlRef.current = agentServerUrl
   }, [agentServerUrl])
 
-  // Queue until the local server URL is known; do not grey out Send.
-  const canSend = !agentUrlError
+  // Always allow Send. If the local URL is not ready yet, sendMessage queues.
+  const canSend = true
 
   const providers: Provider[] = chatTargets.map(toProviderOption)
 

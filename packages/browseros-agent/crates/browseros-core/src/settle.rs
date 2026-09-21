@@ -228,7 +228,9 @@ fn earliest_deadline(a: Instant, b: Instant) -> Instant {
 }
 
 fn tab_is_loading(info: &crate::pages::PageInfo) -> bool {
-    info.is_loading && info.load_progress < 1.0
+    // Chromium can leave is_loading true on SPA / service-worker pages even
+    // after the document is usable. Treat high progress as settled.
+    info.is_loading && info.load_progress < 0.9
 }
 
 #[cfg(test)]

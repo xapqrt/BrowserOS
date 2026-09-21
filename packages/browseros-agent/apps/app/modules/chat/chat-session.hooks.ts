@@ -227,7 +227,10 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   const setSearchParamsRef = useRef(setSearchParams)
   setSearchParamsRef.current = setSearchParams
   const conversationIdParam = searchParams.get('conversationId')
-  const restoreLocally = options?.origin === 'newtab' || !isLoggedIn
+  // Local SQLite is the source of truth for history clicks (#2665). Waiting on
+  // GraphQL first left the side panel flashing then snapping back when the
+  // cloud row was missing. Cloud is only a fallback after a local miss.
+  const restoreLocally = true
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [restoreAttempt, setRestoreAttempt] = useState(0)
   const [restoredConversationId, setRestoredConversationId] = useState<
@@ -590,15 +593,27 @@ export const useChatSession = (options?: ChatSessionOptions) => {
         return localStreamRunRef.current === runId
       },
       attach: async (state, isCurrent) => {
-        await detachView()
+        // An explicit history selection owns the URL. Do not clobber it with
+        // the last panel assignment or the view snaps back (#2665).
+        const historySelection = new URLSearchParams(window.location.search).get(
+          'conversationId',
+        )
+        if (historySelection && historySelection !== state.conversationId) {
+          return
+        }
+        if (conversationIdRef.current !== state.conversationId) {
+          await detachView()
+        }
         if (!isCurrent()) return
         const id = state.conversationId as ReturnType<typeof crypto.randomUUID>
         conversationIdRef.current = id
         messagesRef.current = state.messages
         setConversationId(id)
         setMessages(state.messages)
-        setSearchParamsRef.current({}, { replace: true })
-        if (state.status === 'running') {
+        if (!historySelection) {
+          setSearchParamsRef.current({}, { replace: true })
+        }
+        if (state.status === 'running' && localStreamConversationRef.current !== id) {
           streamRequestRef.current = resumeStream({
             body: {
               conversationId: state.conversationId,
@@ -642,7 +657,8 @@ export const useChatSession = (options?: ChatSessionOptions) => {
       if (attachmentRef.current === attachment)
         attachmentRef.current = undefined
       unwatch()
-      void detachView()
+      // Do not abort the server-owned run just because the panel unmounted.
+      // That's how chats randomly cut off when history or another tab remounts.
     }
   }, [detachView, resumeStream, setMessages])
 
@@ -668,7 +684,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     GetConversationWithMessagesDocument,
     { conversationId: conversationIdParam ?? '' },
     {
-      enabled: !!conversationIdParam && !restoreLocally,
+      enabled: !!conversationIdParam && isLoggedIn,
     },
   )
 
@@ -679,28 +695,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     if (!conversationIdParam) return
     if (restoredConversationId === conversationIdParam) return
 
-    if (!restoreLocally) {
-      if (!isRemoteConversationFetched) return
-
-      if (remoteConversationData?.conversation) {
-        const restoredMessages =
-          remoteConversationData.conversation.conversationMessages.nodes
-            .filter((node): node is NonNullable<typeof node> => node !== null)
-            .map((node) => node.message as UIMessage)
-
-        setConversationId(
-          conversationIdParam as ReturnType<typeof crypto.randomUUID>,
-        )
-        setMessages(restoredMessages)
-        setRestoredConversationId(conversationIdParam)
-        setSearchParams({}, { replace: true })
-        return
-      }
-      // Not in the cloud. Since #2542 the local server owns a signed-in user's
-      // history too, so a conversation opened from the local history list has
-      // no cloud record: read it from the server instead of giving up, which
-      // left the side panel snapping back to its previous view (#2665).
-    }
+    // Prefer the local server. GraphQL is a fallback for cloud-only rows.
 
     if (isLoadingProviders || isLoadingAgentUrl) return
     let cancelled = false
@@ -740,21 +735,37 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           )
       },
       onMissing: () => {
-        if (options?.origin === 'newtab')
-          setRestoreError(
-            'This conversation is no longer available. Choose another conversation or start a new one.',
+        if (isLoggedIn && !isRemoteConversationFetched) {
+          // Local miss: wait for GraphQL before declaring the chat gone.
+          cancelled = true
+          return
+        }
+        if (remoteConversationData?.conversation) {
+          const restoredMessages =
+            remoteConversationData.conversation.conversationMessages.nodes
+              .filter((node): node is NonNullable<typeof node> => node !== null)
+              .map((node) => node.message as UIMessage)
+          conversationIdRef.current =
+            conversationIdParam as ReturnType<typeof crypto.randomUUID>
+          messagesRef.current = restoredMessages
+          setConversationId(
+            conversationIdParam as ReturnType<typeof crypto.randomUUID>,
           )
+          setMessages(restoredMessages)
+          return
+        }
+        setRestoreError(
+          'This conversation is no longer available. Choose another conversation or start a new one.',
+        )
       },
       onError: (error) => {
-        if (options?.origin === 'newtab')
-          setRestoreError('Couldn’t open this conversation. Please try again.')
+        setRestoreError('Couldn’t open this conversation. Please try again.')
         sentry.captureException(error, {
           extra: { conversationId: conversationIdParam },
         })
       },
       onSettled: () => {
         setRestoredConversationId(conversationIdParam)
-        if (options?.origin !== 'newtab') setSearchParams({}, { replace: true })
       },
     })
     return () => {

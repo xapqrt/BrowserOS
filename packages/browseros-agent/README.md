@@ -2,6 +2,10 @@
 
 The agent platform behind both browsers. [BrowserOS neo](../../README.md) is `claw-app` plus `claw-server-rust`, and [BrowserOS](../../README.BrowserOS.md) is `app` plus `server`.
 
+## Session smoothness (this fork)
+
+What changed in the side panel, new-tab chat, history, load waits, and MCP so a Mac session does not hang: **[docs/session-smoothness.md](../../docs/session-smoothness.md)**.
+
 ## Start here instead
 
 Setup, the dev loop, what each project is built with, and where the code lives are all in the contributing guides. This file does not repeat them.

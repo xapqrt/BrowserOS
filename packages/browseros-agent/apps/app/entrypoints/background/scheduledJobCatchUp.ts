@@ -7,7 +7,9 @@ export function shouldCatchUpScheduledJob(
   job: ScheduledJob,
   runs: ScheduledJobRun[],
   now: number,
+  options?: { allWindowsIncognito?: boolean },
 ): boolean {
+  if (options?.allWindowsIncognito) return false
   if (!job.enabled) return false
   const jobRuns = runs.filter((r) => r.jobId === job.id)
   if (jobRuns.some((r) => r.status === 'running')) return false

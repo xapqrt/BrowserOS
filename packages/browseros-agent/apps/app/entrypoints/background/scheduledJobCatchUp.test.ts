@@ -56,4 +56,15 @@ describe('shouldCatchUpScheduledJob', () => {
       ),
     ).toBe(false)
   })
+
+  it('does not catch up when every window is incognito', () => {
+    expect(
+      shouldCatchUpScheduledJob(
+        job({ scheduleType: 'hourly', scheduleInterval: 1 }),
+        [],
+        now,
+        { allWindowsIncognito: true },
+      ),
+    ).toBe(false)
+  })
 })

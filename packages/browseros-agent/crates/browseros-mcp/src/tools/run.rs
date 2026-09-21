@@ -453,15 +453,7 @@ async fn execute_run(args: RunArgs, ctx: &ToolCtx) -> Result<RunOutcome, RunErro
             Ok(RunOutcome::job_pending(job_id, logs_snapshot(&logs)))
         }
         result = &mut run => {
-            match &result {
-                Ok(outcome) if outcome.ok => crate::jobs::complete(&job_id, outcome.value.clone()),
-                Ok(outcome) => crate::jobs::fail(
-                    &job_id,
-                    outcome.error.clone().unwrap_or_else(|| "run failed".to_string()),
-                ),
-                Err(RunError::Cancelled) => crate::jobs::fail(&job_id, "cancelled"),
-                Err(err) => crate::jobs::fail(&job_id, format!("{err:?}")),
-            }
+            crate::jobs::forget(&job_id);
             result
         }
     }

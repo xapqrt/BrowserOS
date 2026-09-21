@@ -32,7 +32,7 @@ pub fn definition() -> crate::framework::ToolDef {
     super::def::<PollArgs>(
         "poll",
         DESCRIPTION,
-        Some(super::read_only_annotations()),
+        Some(super::destructive_annotations()),
         handler,
     )
 }
@@ -55,6 +55,32 @@ fn handler<'a>(
                     format!("{structured}"),
                     Some(structured),
                 )));
+            }
+            if let Some(page_id) = args.page {
+                if let Some(result) = pending_dialog_result(ctx, PageId(page_id)) {
+                    return Ok(Some(result));
+                }
+                let page = ctx.session.pages.get_session(PageId(page_id)).await?;
+                let expression = format!(
+                    "(function() {{ var t = globalThis.__browserosJobs && globalThis.__browserosJobs[{id}]; if (t) {{ t.cancelled = true; t.status = 'error'; t.error = 'cancelled'; }} return t || {{ jobId: {id}, status: 'error', error: 'cancelled' }}; }})()",
+                    id = serde_json::to_string(job_id).unwrap_or_else(|_| "\"\"".to_string())
+                );
+                let result: Value = page
+                    .session
+                    .send(
+                        "Runtime.evaluate",
+                        json!({
+                            "expression": expression,
+                            "returnByValue": true,
+                            "awaitPromise": false
+                        }),
+                    )
+                    .await?;
+                let value = result
+                    .pointer("/result/value")
+                    .cloned()
+                    .unwrap_or(json!({ "jobId": job_id, "status": "error", "error": "cancelled" }));
+                return Ok(Some(text_result(format!("{value}"), Some(value))));
             }
         }
         if let Some(job) = jobs::lookup(job_id) {

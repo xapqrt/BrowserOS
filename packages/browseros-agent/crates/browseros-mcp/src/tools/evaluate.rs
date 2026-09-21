@@ -230,9 +230,17 @@ fn wrap_with_job_race(expression: &str, timeout_ms: u64) -> String {
   if (raced.k === 'ok') return raced.v;
   const jobId = 'job-ev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   globalThis.__browserosJobs = globalThis.__browserosJobs || {{}};
-  globalThis.__browserosJobs[jobId] = {{ jobId, status: 'running' }};
-  work.then((v) => {{ globalThis.__browserosJobs[jobId] = {{ jobId, status: 'done', value: v }}; }})
-      .catch((e) => {{ globalThis.__browserosJobs[jobId] = {{ jobId, status: 'error', error: String(e && e.message ? e.message : e) }}; }});
+  globalThis.__browserosJobs[jobId] = {{ jobId, status: 'running', cancelled: false }};
+  work.then((v) => {{
+    const cur = globalThis.__browserosJobs[jobId];
+    if (cur && cur.cancelled) return;
+    globalThis.__browserosJobs[jobId] = {{ jobId, status: 'done', value: v }};
+  }})
+      .catch((e) => {{
+    const cur = globalThis.__browserosJobs[jobId];
+    if (cur && cur.cancelled) return;
+    globalThis.__browserosJobs[jobId] = {{ jobId, status: 'error', error: String(e && e.message ? e.message : e) }};
+  }});
   return {{ jobId, status: 'running' }};
 }})()"#
     )

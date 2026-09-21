@@ -166,6 +166,17 @@ export const Chat = () => {
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : restoreError ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="text-muted-foreground text-sm">{restoreError}</p>
+            <button
+              type="button"
+              className="text-primary text-sm underline"
+              onClick={() => retryRestoreConversation()}
+            >
+              Try again
+            </button>
+          </div>
         ) : messages.length === 0 ? (
           <ChatEmptyState
             mode={mode}

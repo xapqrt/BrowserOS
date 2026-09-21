@@ -80,6 +80,12 @@ pub fn complete(id: &str, value: Option<Value>) {
     }
 }
 
+/// Drop a job that finished inside the cap so it does not occupy the table.
+pub fn forget(id: &str) {
+    let mut map = lock();
+    map.remove(id);
+}
+
 pub fn fail(id: &str, error: impl Into<String>) {
     let mut map = lock();
     if let Some(job) = map.get_mut(id) {

@@ -52,6 +52,10 @@ fn open_world_annotations() -> ToolAnnotations {
     ToolAnnotations::new().open_world(true)
 }
 
+fn destructive_annotations() -> ToolAnnotations {
+    ToolAnnotations::new().read_only(false).open_world(true)
+}
+
 fn def<T>(
     name: &'static str,
     description: &'static str,

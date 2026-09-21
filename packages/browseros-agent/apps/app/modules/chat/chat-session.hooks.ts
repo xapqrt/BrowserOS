@@ -65,6 +65,7 @@ import {
 import { useExecutionHistoryTracker } from './execution-history-tracker.hooks'
 import { PanelConversationAttachment } from './panel-conversation-attachment'
 import { toLlmProviderConfig } from './sidepanel-chat-targets'
+import { chatFetch } from './chat-fetch'
 import { stripImageToolOutputs } from './tool-output-strip'
 
 const LAST_CONVERSATION_STORAGE_KEY = 'browseros.sidepanel.lastConversationId'
@@ -432,6 +433,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   const transportRef = useRef<DefaultChatTransport<UIMessage> | null>(null)
   if (!transportRef.current) {
     transportRef.current = new DefaultChatTransport<UIMessage>({
+      fetch: chatFetch,
       prepareReconnectToStreamRequest: async ({ body }) => {
         const serverUrl = await resolveAgentServerUrlWithRetry()
         return {
@@ -726,7 +728,8 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     GetConversationWithMessagesDocument,
     { conversationId: conversationIdParam ?? '' },
     {
-      enabled: !!conversationIdParam && isLoggedIn,
+      // Local SQLite is source of truth. Cloud fallback caused history flash (#2665).
+      enabled: false,
     },
   )
 
@@ -777,25 +780,6 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           )
       },
       onMissing: () => {
-        if (isLoggedIn && !isRemoteConversationFetched) {
-          // Local miss: wait for GraphQL before declaring the chat gone.
-          cancelled = true
-          return
-        }
-        if (remoteConversationData?.conversation) {
-          const restoredMessages =
-            remoteConversationData.conversation.conversationMessages.nodes
-              .filter((node): node is NonNullable<typeof node> => node !== null)
-              .map((node) => node.message as UIMessage)
-          conversationIdRef.current =
-            conversationIdParam as ReturnType<typeof crypto.randomUUID>
-          messagesRef.current = restoredMessages
-          setConversationId(
-            conversationIdParam as ReturnType<typeof crypto.randomUUID>,
-          )
-          setMessages(restoredMessages)
-          return
-        }
         setRestoreError(
           'This conversation is no longer available. Choose another conversation or start a new one.',
         )

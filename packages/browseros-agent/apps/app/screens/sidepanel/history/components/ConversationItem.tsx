@@ -46,7 +46,7 @@ export const ConversationItem: FC<ConversationItemProps> = ({
   return (
     <>
       <Link
-        to={{ pathname: '/', search: `?conversationId=${conversation.id}` }}
+        to={`/?conversationId=${conversation.id}`}
         className={`group flex w-full items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50 ${
           isActive ? 'bg-muted/70' : ''
         }`}

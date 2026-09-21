@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { parseScutilForTest } from './system-proxy'
+import {
+  parsePacFindProxy,
+  parseScutilForTest,
+  parseWinHttpProxy,
+} from './system-proxy'
 
 describe('parseScutilForTest', () => {
   it('reads HTTPS proxy first', () => {
@@ -34,5 +38,29 @@ HTTPSEnable : 0
         'ProxyAutoConfigEnable : 1\nProxyAutoConfigURLString : http://wpad/proxy.pac',
       ),
     ).toEqual({ pacUrl: 'http://wpad/proxy.pac' })
+  })
+})
+
+describe('parsePacFindProxy', () => {
+  it('takes the first PROXY host:port', () => {
+    expect(
+      parsePacFindProxy(
+        'function FindProxyForURL() { return "PROXY corp.example:3128; DIRECT"; }',
+      ),
+    ).toEqual({ host: 'corp.example', port: '3128' })
+  })
+
+  it('is empty for DIRECT-only PAC', () => {
+    expect(parsePacFindProxy('return "DIRECT"')).toEqual({})
+  })
+})
+
+describe('parseWinHttpProxy', () => {
+  it('reads netsh proxy server', () => {
+    expect(
+      parseWinHttpProxy(
+        'Current WinHTTP proxy settings:\n    Proxy Server(s) :  10.1.1.9:8080\n    Bypass List     :  <local>\n',
+      ),
+    ).toEqual({ host: '10.1.1.9', port: '8080' })
   })
 })

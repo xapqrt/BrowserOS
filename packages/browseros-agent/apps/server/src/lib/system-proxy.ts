@@ -1,6 +1,7 @@
 /**
  * Honor the OS / env proxy for outbound LLM traffic (#2686).
- * macOS: `scutil --proxy`. Env: HTTP(S)_PROXY / NO_PROXY.
+ * macOS: `scutil --proxy`. Windows: `netsh winhttp show proxy`.
+ * Env: HTTP(S)_PROXY / NO_PROXY. PAC: first PROXY host:port, fail-open.
  * Loopback (Ollama / LM Studio) stays direct.
  */
 
@@ -40,34 +41,74 @@ function parseScutil(output: string): {
   return {}
 }
 
-/** Apply macOS system proxy into HTTP(S)_PROXY if unset. Fail-open. */
+/** First `PROXY host:port` in a PAC script. DIRECT-only PAC is empty (fail-open). */
+export function parsePacFindProxy(pacText: string): { host?: string; port?: string } {
+  const match = pacText.match(/PROXY\s+([^\s;:]+):(\d+)/i)
+  if (!match) return {}
+  return { host: match[1], port: match[2] }
+}
+
+export function parseWinHttpProxy(output: string): { host?: string; port?: string } {
+  const line = output.split('\n').find((l) => /proxy server/i.test(l))
+  if (!line) return {}
+  if (/direct access/i.test(output) && !/:\d+/.test(line)) return {}
+  const match = line.match(/([^\s:]+):(\d+)/)
+  if (!match) return {}
+  return { host: match[1], port: match[2] }
+}
+
+function applyHostPort(host?: string, port?: string) {
+  if (!host) return
+  const url = `http://${host}${port ? `:${port}` : ''}`
+  process.env.HTTP_PROXY ??= url
+  process.env.HTTPS_PROXY ??= url
+  process.env.http_proxy ??= url
+  process.env.https_proxy ??= url
+}
+
+function fetchPacProxy(pacUrl: string): { host?: string; port?: string } {
+  process.env.BROWSEROS_PAC_URL ??= pacUrl
+  try {
+    const result = spawnSync('curl', ['-fsS', '--max-time', '2', pacUrl], {
+      encoding: 'utf8',
+      timeout: 2500,
+    })
+    if (result.status !== 0 || !result.stdout) return {}
+    return parsePacFindProxy(result.stdout)
+  } catch {
+    return {}
+  }
+}
+
+/** Apply OS / PAC proxy into HTTP(S)_PROXY if unset. Fail-open. */
 export function applySystemProxy(): void {
   if (alreadyConfigured()) {
     ensureNoProxyLoopback()
     return
   }
-  if (process.platform !== 'darwin') {
-    ensureNoProxyLoopback()
-    return
-  }
   try {
-    const result = spawnSync('scutil', ['--proxy'], {
-      encoding: 'utf8',
-      timeout: 2000,
-    })
-    if (result.status !== 0 || !result.stdout) {
-      ensureNoProxyLoopback()
-      return
-    }
-    const { host, port, pacUrl } = parseScutil(result.stdout)
-    if (host) {
-      const url = `http://${host}${port ? `:${port}` : ''}`
-      process.env.HTTP_PROXY ??= url
-      process.env.HTTPS_PROXY ??= url
-      process.env.http_proxy ??= url
-      process.env.https_proxy ??= url
-    } else if (pacUrl) {
-      process.env.BROWSEROS_PAC_URL ??= pacUrl
+    if (process.platform === 'darwin') {
+      const result = spawnSync('scutil', ['--proxy'], {
+        encoding: 'utf8',
+        timeout: 2000,
+      })
+      if (result.status === 0 && result.stdout) {
+        const { host, port, pacUrl } = parseScutil(result.stdout)
+        if (host) applyHostPort(host, port)
+        else if (pacUrl) {
+          const pac = fetchPacProxy(pacUrl)
+          applyHostPort(pac.host, pac.port)
+        }
+      }
+    } else if (process.platform === 'win32') {
+      const result = spawnSync('netsh', ['winhttp', 'show', 'proxy'], {
+        encoding: 'utf8',
+        timeout: 2000,
+      })
+      if (result.status === 0 && result.stdout) {
+        const parsed = parseWinHttpProxy(result.stdout)
+        applyHostPort(parsed.host, parsed.port)
+      }
     }
   } catch {
     // fail open to direct

@@ -158,9 +158,16 @@ export const scheduledJobRuns = async () => {
 
       const jobs = loadedJobs.filter((j) => j.enabled)
       const now = Date.now()
+      const windows = await chrome.windows.getAll()
+      const allWindowsIncognito =
+        windows.length > 0 && windows.every((w) => w.incognito)
 
       for (const job of jobs) {
-        if (!shouldCatchUpScheduledJob(job, runs, now)) continue
+        if (
+          !shouldCatchUpScheduledJob(job, runs, now, { allWindowsIncognito })
+        ) {
+          continue
+        }
         await executeScheduledJob(job.id)
       }
     } finally {

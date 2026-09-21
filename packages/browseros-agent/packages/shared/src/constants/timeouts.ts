@@ -12,6 +12,8 @@ export const KLAVIS_PROXY_RETRY_BACKOFF_MS = [
 
 export const TIMEOUTS = {
   // Agent/Tool execution
+  /** First token of /chat. 0 = no client abort (was 45s hung spinner). */
+  CHAT_FIRST_BYTE: 0,
   TOOL_CALL: 120_000,
   TOOL_POST_ACTION: 2_000,
   TAB_GROUP_OP: 10_000,

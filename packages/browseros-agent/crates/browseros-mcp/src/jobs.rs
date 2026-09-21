@@ -6,6 +6,7 @@ use std::{
     sync::{Mutex, OnceLock},
     time::{Duration, Instant},
 };
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 const MAX_JOBS: usize = 64;
@@ -23,6 +24,7 @@ pub struct Job {
     pub id: String,
     pub state: JobState,
     pub updated: Instant,
+    pub cancel: CancellationToken,
 }
 
 fn table() -> &'static Mutex<HashMap<String, Job>> {
@@ -53,8 +55,9 @@ fn gc(map: &mut HashMap<String, Job>) {
 }
 
 #[must_use]
-pub fn mint_running() -> String {
+pub fn mint_running() -> (String, CancellationToken) {
     let id = format!("job-{}", Uuid::new_v4());
+    let cancel = CancellationToken::new();
     let mut map = lock();
     gc(&mut map);
     map.insert(
@@ -63,9 +66,10 @@ pub fn mint_running() -> String {
             id: id.clone(),
             state: JobState::Running,
             updated: Instant::now(),
+            cancel: cancel.clone(),
         },
     );
-    id
+    (id, cancel)
 }
 
 pub fn complete(id: &str, value: Option<Value>) {
@@ -83,6 +87,21 @@ pub fn fail(id: &str, error: impl Into<String>) {
             error: error.into(),
         };
         job.updated = Instant::now();
+    }
+}
+
+/// Cancel a parked run. Returns true if the job existed.
+pub fn cancel(id: &str) -> bool {
+    let mut map = lock();
+    if let Some(job) = map.get_mut(id) {
+        job.cancel.cancel();
+        job.state = JobState::Failed {
+            error: "cancelled".into(),
+        };
+        job.updated = Instant::now();
+        true
+    } else {
+        false
     }
 }
 

@@ -279,6 +279,7 @@ struct RunControl {
     timeout_message: Arc<str>,
     /// When true the wall-clock cap parked this run as a job; do not interrupt JS.
     detached: Arc<AtomicBool>,
+    job_cancel: tokio_util::sync::CancellationToken,
 }
 
 impl RunControl {
@@ -288,13 +289,16 @@ impl RunControl {
     {
         tokio::select! {
             () = self.cancel.cancelled() => Err("cancelled".to_string()),
-            () = sleep_until(self.deadline) => Err(self.timeout_message.to_string()),
+            () = self.job_cancel.cancelled() => Err("cancelled".to_string()),
+            () = sleep_until(self.deadline), if !self.detached.load(Ordering::SeqCst) => {
+                Err(self.timeout_message.to_string())
+            }
             result = future => result.map_err(|err| err.to_string()),
         }
     }
 
     fn is_cancelled(&self) -> bool {
-        self.cancel.is_cancelled()
+        self.cancel.is_cancelled() || self.job_cancel.is_cancelled()
     }
 
     fn timed_out(&self) -> bool {
@@ -408,11 +412,13 @@ async fn execute_run(args: RunArgs, ctx: &ToolCtx) -> Result<RunOutcome, RunErro
     let duration = Duration::from_millis(timeout_ms);
     let deadline = Instant::now() + duration;
     let timeout_message: Arc<str> = Arc::from(format!("run exceeded {timeout_ms}ms"));
+    let (job_id, job_cancel) = crate::jobs::mint_running();
     let control = RunControl {
         cancel: ctx.cancel.clone(),
         deadline,
         timeout_message: timeout_message.clone(),
         detached: Arc::new(AtomicBool::new(false)),
+        job_cancel,
     };
     let run = execute_quickjs(
         args.code,
@@ -426,12 +432,12 @@ async fn execute_run(args: RunArgs, ctx: &ToolCtx) -> Result<RunOutcome, RunErro
         () = ctx.cancel.cancelled() => Err(RunError::Cancelled),
         () = sleep_until(deadline) => {
             control.detached.store(true, Ordering::SeqCst);
-            let job_id = crate::jobs::mint_running();
             let job_logs = logs.clone();
+            let parked_id = job_id.clone();
             tokio::spawn(async move {
                 match run.await {
                     Ok(outcome) if outcome.ok => {
-                        crate::jobs::complete(&job_id, outcome.value);
+                        crate::jobs::complete(&parked_id, outcome.value);
                     }
                     Ok(outcome) => {
                         crate::jobs::fail(
@@ -439,14 +445,25 @@ async fn execute_run(args: RunArgs, ctx: &ToolCtx) -> Result<RunOutcome, RunErro
                             outcome.error.unwrap_or_else(|| "run failed".to_string()),
                         );
                     }
-                    Err(RunError::Cancelled) => crate::jobs::fail(&job_id, "cancelled"),
-                    Err(err) => crate::jobs::fail(&job_id, format!("{err:?}")),
+                    Err(RunError::Cancelled) => crate::jobs::fail(&parked_id, "cancelled"),
+                    Err(err) => crate::jobs::fail(&parked_id, format!("{err:?}")),
                 }
                 drop(job_logs);
             });
             Ok(RunOutcome::job_pending(job_id, logs_snapshot(&logs)))
         }
-        result = &mut run => result,
+        result = &mut run => {
+            match &result {
+                Ok(outcome) if outcome.ok => crate::jobs::complete(&job_id, outcome.value.clone()),
+                Ok(outcome) => crate::jobs::fail(
+                    &job_id,
+                    outcome.error.clone().unwrap_or_else(|| "run failed".to_string()),
+                ),
+                Err(RunError::Cancelled) => crate::jobs::fail(&job_id, "cancelled"),
+                Err(err) => crate::jobs::fail(&job_id, format!("{err:?}")),
+            }
+            result
+        }
     }
 }
 
@@ -487,7 +504,9 @@ async fn execute_quickjs(
     let interrupt_deadline = std::time::Instant::now() + duration;
     runtime
         .set_interrupt_handler(Some(Box::new(move || {
-            interrupt_control.is_cancelled() || std::time::Instant::now() >= interrupt_deadline
+            interrupt_control.is_cancelled()
+                || (!interrupt_control.detached.load(Ordering::SeqCst)
+                    && std::time::Instant::now() >= interrupt_deadline)
         })))
         .await;
     let context = AsyncContext::full(&runtime).await.map_err(engine_error)?;
@@ -1171,7 +1190,13 @@ fn diff_json(diff: &browseros_core::snapshot::SnapshotDiff) -> Value {
 fn json_to_js<'js>(ctx: &Ctx<'js>, value: Value) -> rquickjs::Result<JsValue<'js>> {
     match value {
         Value::Null => Ok(JsValue::new_null(ctx.clone())),
-        Value::Boalues) => {
+        Value::Bool(value) => Ok(JsValue::new_bool(ctx.clone(), value)),
+        Value::Number(value) => Ok(JsValue::new_number(
+            ctx.clone(),
+            value.as_f64().unwrap_or_default(),
+        )),
+        Value::String(value) => value.into_js(ctx),
+        Value::Array(values) => {
             let array = Array::new(ctx.clone())?;
             for (index, value) in values.into_iter().enumerate() {
                 array.set(index, json_to_js(ctx, value)?)?;
@@ -1644,14 +1669,6 @@ mod tests {
                 ("pages.getInfo".to_string(), true),
             ]
         );
-      // The direct call is not from a helper; the one inside act() is.
-        assert_eq!(
-            log.from_helper,
-            vec![
-                ("pages.getInfo".to_string(), false),
-                ("pages.getInfo".to_string(), true),
-            ]
-        );
         Ok(())
     }
 
@@ -1963,7 +1980,6 @@ throw new Error('boom');
         Ok(())
     }
 
-    #[tokio::test]
     #[tokio::test]
     async fn run_reports_timeout_as_pollable_job() -> anyhow::Result<()> {
         let result = run_tool(

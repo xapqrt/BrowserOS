@@ -15,7 +15,11 @@ function alreadyConfigured(): boolean {
   )
 }
 
-function parseScutil(output: string): { host?: string; port?: string } {
+function parseScutil(output: string): {
+  host?: string
+  port?: string
+  pacUrl?: string
+} {
   const map: Record<string, string> = {}
   for (const line of output.split('\n')) {
     const match = line.trim().match(/^(\w+)\s*:\s*(.+)$/)
@@ -23,11 +27,15 @@ function parseScutil(output: string): { host?: string; port?: string } {
   }
   const httpsOn = map.HTTPSEnable === '1'
   const httpOn = map.HTTPEnable === '1'
+  const pacOn = map.ProxyAutoConfigEnable === '1'
   if (httpsOn && map.HTTPSProxy) {
     return { host: map.HTTPSProxy, port: map.HTTPSPort }
   }
   if (httpOn && map.HTTPProxy) {
     return { host: map.HTTPProxy, port: map.HTTPPort }
+  }
+  if (pacOn && map.ProxyAutoConfigURLString) {
+    return { pacUrl: map.ProxyAutoConfigURLString }
   }
   return {}
 }
@@ -51,13 +59,15 @@ export function applySystemProxy(): void {
       ensureNoProxyLoopback()
       return
     }
-    const { host, port } = parseScutil(result.stdout)
+    const { host, port, pacUrl } = parseScutil(result.stdout)
     if (host) {
       const url = `http://${host}${port ? `:${port}` : ''}`
       process.env.HTTP_PROXY ??= url
       process.env.HTTPS_PROXY ??= url
       process.env.http_proxy ??= url
       process.env.https_proxy ??= url
+    } else if (pacUrl) {
+      process.env.BROWSEROS_PAC_URL ??= pacUrl
     }
   } catch {
     // fail open to direct
@@ -74,6 +84,10 @@ function ensureNoProxyLoopback(): void {
   process.env.no_proxy = next
 }
 
-export function parseScutilForTest(output: string): { host?: string; port?: string } {
+export function parseScutilForTest(output: string): {
+  host?: string
+  port?: string
+  pacUrl?: string
+} {
   return parseScutil(output)
 }

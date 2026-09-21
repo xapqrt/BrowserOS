@@ -27,4 +27,12 @@ HTTPSEnable : 0
   it('returns empty when nothing is enabled', () => {
     expect(parseScutilForTest('HTTPEnable : 0\nHTTPSEnable : 0')).toEqual({})
   })
+
+  it('surfaces a PAC URL when only auto-config is on', () => {
+    expect(
+      parseScutilForTest(
+        'ProxyAutoConfigEnable : 1\nProxyAutoConfigURLString : http://wpad/proxy.pac',
+      ),
+    ).toEqual({ pacUrl: 'http://wpad/proxy.pac' })
+  })
 })

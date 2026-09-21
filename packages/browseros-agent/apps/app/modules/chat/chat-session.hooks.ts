@@ -715,7 +715,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     const nonEmpty = messages.some((m) => !m.parts?.length)
       ? messages.filter((m) => m.parts?.length > 0)
       : messages
-    const cleaned = stripImageToolOutputs(nonEmpty, { keepLastMessage: true })
+    const cleaned = stripImageToolOutputs(nonEmpty)
     if (cleaned !== messages) setMessages(cleaned)
   }, [messages, status, setMessages])
 

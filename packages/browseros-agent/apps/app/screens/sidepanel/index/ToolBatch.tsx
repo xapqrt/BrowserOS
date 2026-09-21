@@ -35,6 +35,9 @@ export const ToolBatch: FC<ToolBatchProps> = ({
   const shouldBeOpen = isLastMessage && isLastBatch && isStreaming
   const [isOpen, setIsOpen] = useState(shouldBeOpen)
   const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  // Freeze open-clock across parent remounts of the same first toolCallId.
+  const [openedAt] = useState(() => Date.now())
+  void openedAt
 
   useEffect(() => {
     if (isLastMessage && !hasUserInteracted) {

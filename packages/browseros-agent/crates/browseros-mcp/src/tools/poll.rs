@@ -23,6 +23,9 @@ struct PollArgs {
     /// Page id, required to read an in-page evaluate job.
     #[serde(default)]
     page: Option<u32>,
+    /// Set true to cancel a parked run job.
+    #[serde(default)]
+    cancel: Option<bool>,
 }
 
 pub fn definition() -> crate::framework::ToolDef {
@@ -44,6 +47,15 @@ fn handler<'a>(
         let job_id = args.job_id.trim();
         if job_id.is_empty() {
             return Ok(Some(error_result("poll: jobId is required".to_string())));
+        }
+        if args.cancel == Some(true) {
+            if jobs::cancel(job_id) {
+                let structured = json!({ "jobId": job_id, "status": "error", "error": "cancelled" });
+                return Ok(Some(text_result(
+                    format!("{structured}"),
+                    Some(structured),
+                )));
+            }
         }
         if let Some(job) = jobs::lookup(job_id) {
             let structured = job.to_json();

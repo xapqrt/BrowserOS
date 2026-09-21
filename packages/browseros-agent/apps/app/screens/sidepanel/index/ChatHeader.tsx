@@ -24,7 +24,8 @@ import { useCredits } from '@/modules/credits/credits.hooks'
 const CreditsBadgeWrapper: FC = () => {
   const { supports } = useCapabilities()
   const { data } = useCredits()
-  if (!supports(Feature.CREDITS_SUPPORT) || data === undefined) return null
+  if (!supports(Feature.CREDITS_SUPPORT)) return null
+  if (data === undefined) return null
   return (
     <CreditBadge
       credits={data.credits}
@@ -89,7 +90,7 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
           >
             <HeaderProviderIcon provider={selectedProvider} />
             <span className="font-semibold text-base">
-              {selectedProvider.name}
+              {selectedProvider.modelLabel ?? selectedProvider.name}
             </span>
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
           </button>
@@ -162,7 +163,7 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           className="cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          title="Settings"
+          title="Settings — models, MCP, usage"
         >
           <SettingsIcon className="h-4 w-4" />
         </a>

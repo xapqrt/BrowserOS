@@ -28,7 +28,7 @@ Prefer `run` for multi-step work; reach for evaluate only as a fallback for a on
 Use this for page-state reads or small DOM scripts that are awkward with read/grep. \
 Provide `code` (an async body; use `return` to read a value) or `func` (a function \
 expression like `() => {...}` that gets invoked). Return a value to read it back. \
-`timeout` is capped at 30000 ms; for page work that needs longer, start it on the page and poll with short follow-up calls rather than one long evaluate. \
+`timeout` is capped at 30000 ms. If the page is still working, the result is `{ jobId, status: \"running\" }` — call `poll` (and `cancel` to abort) with that jobId and the same `page`. Do not treat a 30s cap as a CDP crash. \
 A result larger than the inline limit is truncated and its full text is written to a local file whose path a remote MCP client cannot read; return only what you need, or raise `maxChars` to receive more of the value inline.";
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

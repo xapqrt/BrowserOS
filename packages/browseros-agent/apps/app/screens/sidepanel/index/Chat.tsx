@@ -100,7 +100,7 @@ export const Chat = () => {
 
   const handleStop = () => {
     track(SIDEPANEL_STOP_CLICKED_EVENT)
-    stop()
+    void stop()
   }
 
   const toggleTabSelection = (tab: chrome.tabs.Tab) => {

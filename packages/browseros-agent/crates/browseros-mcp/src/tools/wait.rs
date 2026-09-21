@@ -14,7 +14,8 @@ const DEFAULT_WAIT_TIMEOUT_MS: u64 = 2_000;
 const MAX_WAIT_TIMEOUT_MS: u64 = 300_000;
 const DESCRIPTION: &str = "\
 Wait on a signal: for=\"text\" (substring appears) or for=\"selector\" (CSS selector matches) \
-beat a blind pause. for=\"time\" (default) pauses value ms (default 2000) - last resort. \
+beat a blind pause. for=\"time\" (default) pauses `value` ms (default 2000, max 300000) — \
+`timeout` is the give-up for text/selector, not a clamp on a time pause. Last resort. \
 Best of all: act and read the diff instead of waiting.";
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]

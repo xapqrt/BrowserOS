@@ -17,10 +17,10 @@ export const CreditBadge: FC<CreditBadgeProps> = ({ credits, onClick }) => {
         'inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-xs transition-colors hover:bg-muted/50',
         getCreditTextColor(credits),
       )}
-      title={`${credits} credits remaining`}
+      title={`${credits} BrowserOS credits left today. Opens usage.`}
     >
       <Coins className="h-3.5 w-3.5" />
-      <span>{credits}</span>
+      <span>{credits} credits</span>
     </button>
   )
 }

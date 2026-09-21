@@ -178,7 +178,7 @@ export const ChatFooter: FC<ChatFooterProps> = ({
               <button
                 type="button"
                 className="flex cursor-pointer items-center gap-1 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground data-[state=open]:bg-accent"
-                title="Connect apps"
+                title="Connect MCP apps"
               >
                 {connectedManagedServers.length > 0 ? (
                   <>

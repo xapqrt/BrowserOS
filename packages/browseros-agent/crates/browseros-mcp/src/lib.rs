@@ -6,6 +6,8 @@
 pub mod constants;
 pub mod format;
 pub mod framework;
+pub mod idle_sleep;
+pub mod jobs;
 pub mod output_file;
 pub mod response;
 pub mod service;

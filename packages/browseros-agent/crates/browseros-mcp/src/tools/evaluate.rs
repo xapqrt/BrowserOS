@@ -103,6 +103,9 @@ fn handler<'a>(
         }
         let page = ctx.session.pages.get_session(PageId(args.page)).await?;
         let timeout = clamp_timeout(args.timeout, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
+        // Race inside the page so work that outlives the cap can be polled
+        // instead of being aborted by CDP (#2703).
+        let expression = wrap_with_job_race(&expression, timeout);
         let result: EvaluateResult = page
             .session
             .send(
@@ -111,7 +114,6 @@ fn handler<'a>(
                     "expression": expression,
                     "returnByValue": true,
                     "awaitPromise": true,
-                    "timeout": timeout,
                     "userGesture": true
                 }),
             )
@@ -214,6 +216,26 @@ fn wrap_as_async_iife(code: &str) -> String {
 
 fn wrap_as_invoked_fn(func: &str) -> String {
     format!("(async () => {{ return await ({func})(); }})()")
+}
+
+fn wrap_with_job_race(expression: &str, timeout_ms: u64) -> String {
+    format!(
+        r#"(async () => {{
+  const work = Promise.resolve({expression});
+  const timeoutMs = {timeout_ms};
+  const raced = await Promise.race([
+    work.then((v) => ({{ k: 'ok', v }})),
+    new Promise((resolve) => setTimeout(() => resolve({{ k: 'to' }}), timeoutMs)),
+  ]);
+  if (raced.k === 'ok') return raced.v;
+  const jobId = 'job-ev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  globalThis.__browserosJobs = globalThis.__browserosJobs || {{}};
+  globalThis.__browserosJobs[jobId] = {{ jobId, status: 'running' }};
+  work.then((v) => {{ globalThis.__browserosJobs[jobId] = {{ jobId, status: 'done', value: v }}; }})
+      .catch((e) => {{ globalThis.__browserosJobs[jobId] = {{ jobId, status: 'error', error: String(e && e.message ? e.message : e) }}; }});
+  return {{ jobId, status: 'running' }};
+}})()"#
+    )
 }
 
 fn safe_stringify(value: &Value) -> String {

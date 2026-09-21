@@ -28,6 +28,8 @@ import { UserActionMessage } from './UserActionMessage'
 export interface ChatMessagesProps {
   messages: UIMessage[]
   status: 'streaming' | 'submitted' | 'ready' | 'error'
+  /** When set, do not keep the bounce-dots spinner over a real LLM error. */
+  hasError?: boolean
   getActionForMessage?: (message: UIMessage) => ChatAction | undefined
   liked: Record<string, boolean>
   onClickLike: (messageId: string) => void
@@ -42,6 +44,7 @@ export interface ChatMessagesProps {
 export const ChatMessages: FC<ChatMessagesProps> = ({
   messages,
   status,
+  hasError,
   getActionForMessage,
   liked,
   disliked,
@@ -52,7 +55,8 @@ export const ChatMessages: FC<ChatMessagesProps> = ({
   onTakeSurvey,
   onDismissJtbdPopup,
 }) => {
-  const isStreaming = status === 'streaming' || status === 'submitted'
+  const isStreaming =
+    !hasError && (status === 'streaming' || status === 'submitted')
 
   return (
     <>

@@ -176,6 +176,7 @@ export const Chat = () => {
           <ChatMessages
             messages={messages}
             status={status}
+            hasError={!!chatError}
             getActionForMessage={getActionForMessage}
             liked={liked}
             onClickLike={onClickLike}

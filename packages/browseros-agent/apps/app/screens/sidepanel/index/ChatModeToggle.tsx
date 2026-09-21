@@ -37,20 +37,20 @@ export const ChatModeToggle: FC<ChatModeToggleProps> = ({
             {isAgentMode ? (
               <>
                 <MousePointer2 className="h-3 w-3" />
-                <span>Agent Mode ON</span>
+                <span>Agent</span>
               </>
             ) : (
               <>
                 <MessageSquare className="h-3 w-3" />
-                <span>Chat Mode ON</span>
+                <span>Chat</span>
               </>
             )}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[220px]">
+        <TooltipContent side="top" className="max-w-[240px]">
           {isAgentMode
-            ? 'AI can browse, click, and navigate'
-            : 'AI can only read, cannot click or navigate'}
+            ? 'Agent: can open tabs, click, and fill forms. Switch to Chat for Q&A only.'
+            : 'Chat: answers questions, will not click or navigate. Switch to Agent to browse.'}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

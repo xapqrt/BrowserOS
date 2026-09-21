@@ -85,7 +85,7 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
           <button
             type="button"
             className="group relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-foreground transition-colors hover:border-[var(--accent-orange)]/40 hover:bg-muted/50 data-[state=open]:border-[var(--accent-orange)]/50 data-[state=open]:bg-accent"
-            title="Change AI Provider"
+            title="Change model or agent"
           >
             <HeaderProviderIcon provider={selectedProvider} />
             <span className="font-semibold text-base">

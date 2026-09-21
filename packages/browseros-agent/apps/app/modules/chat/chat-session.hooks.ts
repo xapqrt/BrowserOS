@@ -272,6 +272,14 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   const isRestoringConversation =
     !!conversationIdParam && restoredConversationId !== conversationIdParam
 
+  useEffect(() => {
+    if (!isRestoringConversation) return
+    const timer = window.setTimeout(() => {
+      setRestoredConversationId((current) => current ?? conversationIdParam)
+    }, 8_000)
+    return () => window.clearTimeout(timer)
+  }, [isRestoringConversation, conversationIdParam])
+
   // 'local': the local server owns history, persisting it to SQLite during
   // /chat. Every signed-in user now takes this path too, where the client used
   // to upload their turns to the cloud instead. 'cloud' survives only as the
@@ -290,11 +298,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   }, [agentServerUrl])
 
   const canSend =
-    !isLoadingAgentUrl &&
-    !agentUrlError &&
-    !!agentServerUrl &&
-    !isRestoringConversation &&
-    !restoreError
+    !isLoadingAgentUrl && !agentUrlError && !!agentServerUrl
 
   const providers: Provider[] = chatTargets.map(toProviderOption)
 
@@ -957,7 +961,10 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     action?: ChatAction
     files?: FileUIPart[]
   }) => {
-    if (isRestoringConversation || restoreError) return
+    if (restoreError) {
+      setRestoreError(null)
+      setRestoredConversationId(conversationIdRef.current)
+    }
     if (!isIntegrationsSyncedRef.current || !agentUrlRef.current) {
       pendingMessageRef.current = params
       return
@@ -1049,7 +1056,6 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     )
     if (!target) return
 
-    const previousTarget = selectedChatTargetRef.current
     track(PROVIDER_SELECTED_EVENT, {
       provider_id: target.id,
       provider_type: target.kind === 'acp' ? 'acp' : target.type,
@@ -1069,14 +1075,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
       })
     })
 
-    if (
-      previousTarget &&
-      (previousTarget.kind !== target.kind ||
-        previousTarget.id !== target.id) &&
-      messagesRef.current.length > 0
-    ) {
-      resetConversationState()
-    }
+    // Keep the open thread when switching models.
   }
 
   const getActionForMessage = (message: UIMessage) => {

@@ -57,9 +57,14 @@ export const ToolBatch: FC<ToolBatchProps> = ({
 
   const completedCount = tools.filter((t) => isToolCompleted(t.state)).length
   const elapsedSec = Math.max(0, Math.floor((nowTick - openedAt) / 1000))
+  const names = tools
+    .slice(0, 2)
+    .map((t) => formatToolName(t.toolName))
+    .join(', ')
+  const extra = tools.length > 2 ? ` +${tools.length - 2}` : ''
   const triggerTitle = isStreaming
-    ? `${completedCount}/${tools.length} actions · ${elapsedSec}s`
-    : `${completedCount}/${tools.length} actions completed`
+    ? `${names}${extra} · ${elapsedSec}s`
+    : `${completedCount}/${tools.length} · ${names}${extra}`
 
   const onManualToggle = (newState: boolean) => {
     setHasUserInteracted(true)

@@ -66,17 +66,8 @@ export const Chat = () => {
     setMounted(true)
   }, [])
 
-  useEffect(() => {
-    ;(async () => {
-      const currentTab = (
-        await chrome.tabs.query({
-          active: true,
-          currentWindow: true,
-        })
-      ).filter((tab) => tab.url?.startsWith('http'))
-      setAttachedTabs(currentTab)
-    })()
-  }, [])
+  // Do not auto-attach the current tab. That left leftover tabs on the next
+  // prompt and made it look like the composer was stuck to the last page.
 
   // Trigger JTBD popup when AI finishes responding
   const previousChatStatus = useRef(status)
@@ -167,8 +158,9 @@ export const Chat = () => {
     <>
       <main className="mt-4 flex h-full flex-1 flex-col space-y-4 overflow-y-auto">
         {isRestoringConversation ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="text-xs">Opening this chat…</p>
           </div>
         ) : restoreError ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
@@ -186,12 +178,10 @@ export const Chat = () => {
             mode={mode}
             mounted={mounted}
             onSuggestionClick={handleSuggestionClick}
-            resumeConversationId={
-              readStoredConversationId() &&
-              readStoredConversationId() !== conversationId
-                ? readStoredConversationId()
-                : null
-            }
+            resumeConversationId={(() => {
+              const stored = readStoredConversationId()
+              return stored && stored !== conversationId ? stored : null
+            })()}
           />
         ) : (
           <ChatMessages

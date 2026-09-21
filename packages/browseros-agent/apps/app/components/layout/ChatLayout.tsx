@@ -1,11 +1,13 @@
 import type { FC } from 'react'
-import { Outlet, useLocation } from 'react-router'
+import { useLocation } from 'react-router'
 import {
   ChatSessionProvider,
   useChatSessionContext,
 } from '@/modules/chat/chat-session-context'
 import { readStoredConversationId } from '@/modules/chat/chat-session.hooks'
 import { conversationTitle } from '@/modules/conversations/history-list'
+import { ChatHistory } from '@/screens/sidepanel/history/ChatHistory'
+import { Chat } from '@/screens/sidepanel/index/Chat'
 import { ChatHeader } from '@/screens/sidepanel/index/ChatHeader'
 
 const ChatLayoutContent: FC = () => {
@@ -28,10 +30,9 @@ const ChatLayoutContent: FC = () => {
   const threadTitle = lastUserText ? conversationTitle(lastUserText) : undefined
   const resumeConversationId = readStoredConversationId()
 
-  // Never cover the panel with a full-screen spinner. That made history
-  // clicks look dead: the list navigated to `/` and a loader ate the UI.
+  // History is an overlay so the live chat (and its stream) stay mounted.
   return (
-    <div className="mx-auto flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+    <div className="relative mx-auto flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
       {selectedProvider ? (
         <ChatHeader
           selectedProvider={selectedProvider}
@@ -39,14 +40,21 @@ const ChatLayoutContent: FC = () => {
           providers={providers}
           onNewConversation={resetConversation}
           hasMessages={messages.length > 0}
+          threadTitle={threadTitle}
+          resumeConversationId={resumeConversationId}
         />
       ) : (
         <div className="flex h-12 shrink-0 items-center px-3 text-muted-foreground text-xs">
           {isHistoryPage ? 'History' : 'Starting…'}
         </div>
       )}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <Outlet />
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Chat />
+        {isHistoryPage ? (
+          <div className="absolute inset-0 z-20 flex flex-col overflow-hidden bg-background">
+            <ChatHistory />
+          </div>
+        ) : null}
       </div>
     </div>
   )

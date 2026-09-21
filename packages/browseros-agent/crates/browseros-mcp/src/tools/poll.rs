@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 
 const DESCRIPTION: &str = "\
 Poll a `run` or `evaluate` job that outlived the 30s cap. Pass the `jobId` returned when a call came back with status `running`. \
-If the job was started inside a page (`evaluate`), also pass `page`. Keep polling until `status` is `done` or `error`.";
+If the job was started inside a page (`evaluate`), also pass `page`. Call at most twice; if still running, report that and continue other work.";
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

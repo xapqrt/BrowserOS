@@ -24,6 +24,8 @@ import {
 } from '../graphql/chatHistoryDocument'
 
 export const LocalChatHistory: FC<{ search: string }> = ({ search }) => {
+  const { sessionInfo } = useSessionInfo()
+  const userId = sessionInfo.user?.id
   const { data: serverConversations = [] } = useServerConversations()
   const deleteConversation = useDeleteServerConversation()
   const queryClient = useQueryClient()

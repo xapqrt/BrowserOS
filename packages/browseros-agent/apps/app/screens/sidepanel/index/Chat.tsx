@@ -166,12 +166,12 @@ export const Chat = () => {
   return (
     <>
       <main className="mt-4 flex h-full flex-1 flex-col space-y-4 overflow-y-auto">
-        {isRestoringConversation ? (
+        {isRestoringConversation && !restoreError ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />
             <p className="text-xs">Opening this chat…</p>
           </div>
-        ) : restoreError ? (
+        ) : restoreError && messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="text-muted-foreground text-sm">{restoreError}</p>
             <button

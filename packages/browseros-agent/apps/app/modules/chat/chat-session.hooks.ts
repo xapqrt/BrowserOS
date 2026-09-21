@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import useDeepCompareEffect from 'use-deep-compare-effect'
 import type { Provider } from '@/components/chat/chatComponentTypes'
-import { useSessionInfo } from '@/lib/auth/sessionStorage'
 import {
   conversationForTab,
   conversationPanelViewsStorage,
@@ -249,11 +248,6 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     error: agentUrlError,
   } = useAgentServerUrl()
 
-  // Identity is still needed to read a cloud conversation back. Nothing on
-  // this screen writes to the cloud any more.
-  const { sessionInfo } = useSessionInfo()
-  const userId = sessionInfo.user?.id
-  const isLoggedIn = !!userId
   const [searchParams, setSearchParams] = useSearchParams()
   const setSearchParamsRef = useRef(setSearchParams)
   setSearchParamsRef.current = setSearchParams
@@ -278,7 +272,6 @@ export const useChatSession = (options?: ChatSessionOptions) => {
       setRestoreError(
         'This chat is taking too long to open. Try again, or open your last saved chat.',
       )
-      setRestoredConversationId((current) => current ?? conversationIdParam)
     }, 8_000)
     return () => window.clearTimeout(timer)
   }, [isRestoringConversation, conversationIdParam])
@@ -802,6 +795,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           await selectChatTarget(target)
         }
         if (cancelled) return
+        setRestoreError(null)
         const id = conversation.id as ReturnType<typeof crypto.randomUUID>
         conversationIdRef.current = id
         messagesRef.current = conversation.messages

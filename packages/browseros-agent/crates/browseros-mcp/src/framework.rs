@@ -295,6 +295,14 @@ pub async fn execute_tool(
 ) -> ToolExecResult<ToolResult> {
     ctx.throw_if_cancelled()?;
     let primary_page = extract_page_id(def.metadata.accepts_page_arg, &raw_args).map(PageId);
+    // Bring the target tab to the front before act/navigate/wait (and any other
+    // page-addressed tool) so the user can see and stop the agent instead of
+    // watching a background tab.
+    if matches!(def.name, "act" | "navigate" | "wait")
+        && let Some(page) = primary_page
+    {
+        let _ = ctx.session.pages.activate(page).await;
+    }
     let mut response = ToolResponse::new();
     match (def.handler)(raw_args, ctx, &mut response).await {
         Ok(Some(result)) => response.append_result(result),

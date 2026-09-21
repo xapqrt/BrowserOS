@@ -67,6 +67,36 @@ import { PanelConversationAttachment } from './panel-conversation-attachment'
 import { toLlmProviderConfig } from './sidepanel-chat-targets'
 import { stripImageToolOutputs } from './tool-output-strip'
 
+const LAST_CONVERSATION_STORAGE_KEY = 'browseros.sidepanel.lastConversationId'
+
+/** HashRouter puts search in the hash; `location.search` is empty in the side panel. */
+export const conversationIdFromWindowLocation = (): string | null => {
+  const fromSearch = new URLSearchParams(window.location.search).get(
+    'conversationId',
+  )
+  if (fromSearch) return fromSearch
+  const hash = window.location.hash
+  const query = hash.includes('?') ? hash.slice(hash.indexOf('?')) : ''
+  return new URLSearchParams(query).get('conversationId')
+}
+
+const readStoredConversationId = (): string | null => {
+  try {
+    return sessionStorage.getItem(LAST_CONVERSATION_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+const writeStoredConversationId = (id: string | null) => {
+  try {
+    if (!id) sessionStorage.removeItem(LAST_CONVERSATION_STORAGE_KEY)
+    else sessionStorage.setItem(LAST_CONVERSATION_STORAGE_KEY, id)
+  } catch {
+    // private mode
+  }
+}
+
 const getLastMessageText = (messages: UIMessage[]) => {
   const lastMessage = messages[messages.length - 1]
   if (!lastMessage) return ''
@@ -226,7 +256,9 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   const [searchParams, setSearchParams] = useSearchParams()
   const setSearchParamsRef = useRef(setSearchParams)
   setSearchParamsRef.current = setSearchParams
-  const conversationIdParam = searchParams.get('conversationId')
+  const conversationIdParam =
+    searchParams.get('conversationId') ??
+    conversationIdFromWindowLocation()
   // Local SQLite is the source of truth for history clicks (#2665). Waiting on
   // GraphQL first left the side panel flashing then snapping back when the
   // cloud row was missing. Cloud is only a fallback after a local miss.
@@ -294,6 +326,18 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   useEffect(() => {
     conversationIdRef.current = conversationId
   }, [conversationId])
+
+  // Remounts used to mint a fresh UUID and lose the in-app session. Restore the
+  // last id so the server conversation (and MCP handle on that conversation) stick.
+  useEffect(() => {
+    if (searchParams.get('conversationId') || conversationIdFromWindowLocation())
+      return
+    const stored = readStoredConversationId()
+    if (!stored) return
+    setSearchParams({ conversationId: stored }, { replace: true })
+    // only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const {
     startTask: startExecutionTask,
@@ -595,9 +639,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
       attach: async (state, isCurrent) => {
         // An explicit history selection owns the URL. Do not clobber it with
         // the last panel assignment or the view snaps back (#2665).
-        const historySelection = new URLSearchParams(window.location.search).get(
-          'conversationId',
-        )
+        const historySelection = conversationIdFromWindowLocation()
         if (historySelection && historySelection !== state.conversationId) {
           return
         }
@@ -786,6 +828,10 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     messagesRef.current = messages
     syncExecutionHistory(messages, status)
   }, [messages, status, syncExecutionHistory])
+
+  useEffect(() => {
+    if (messages.length > 0) writeStoredConversationId(conversationId)
+  }, [conversationId, messages.length])
 
   // Save conversation only after a turn terminates — not on every token
   const previousStatusRef = useRef(status)
@@ -1004,6 +1050,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     // (via the restore effect's cleanup), so a stale response can't revive the
     // old conversation over this new blank session.
     setSearchParams({}, { replace: true })
+    writeStoredConversationId(null)
   }
 
   const handleSelectProvider = (provider: Provider) => {

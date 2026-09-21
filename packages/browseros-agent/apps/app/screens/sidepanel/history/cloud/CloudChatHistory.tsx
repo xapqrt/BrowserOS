@@ -41,7 +41,9 @@ export const CloudChatHistory: FC<CloudChatHistoryProps> = ({
   userId,
   localIds,
 }) => {
-  const { conversationId: activeConversationId } = useChatSessionContext()
+  const { conversationId: sessionConversationId } = useChatSessionContext()
+  const activeConversationId =
+    conversationIdFromWindowLocation() ?? sessionConversationId
   const queryClient = useQueryClient()
 
   const { data: profileData } = useGraphqlQuery(GetProfileIdByUserIdDocument, {

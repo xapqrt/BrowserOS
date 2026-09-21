@@ -275,6 +275,9 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   useEffect(() => {
     if (!isRestoringConversation) return
     const timer = window.setTimeout(() => {
+      setRestoreError(
+        'This chat is taking too long to open. Try again, or open your last saved chat.',
+      )
       setRestoredConversationId((current) => current ?? conversationIdParam)
     }, 8_000)
     return () => window.clearTimeout(timer)
@@ -1004,31 +1007,13 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     return () => unwatch()
   }, [])
 
-  const discardServerSession = useCallback((conversationId: string) => {
-    const serverUrl = agentUrlRef.current
-    if (!serverUrl) return
-    void fetch(`${serverUrl}/chat/${encodeURIComponent(conversationId)}`, {
-      method: 'DELETE',
-      keepalive: true,
-    })
-      .then((response) => {
-        if (!response.ok && response.status !== 404) {
-          throw new Error(`Session cleanup failed (${response.status})`)
-        }
-      })
-      .catch((error) => {
-        sentry.captureException(error, {
-          extra: { conversationId },
-        })
-      })
-  }, [])
-
   const resetConversationState = () => {
     const previousConversationId = conversationIdRef.current
     attachmentRef.current?.retire(previousConversationId)
     pendingMessageRef.current = null
     localStreamConversationRef.current = undefined
-    discardServerSession(previousConversationId)
+    // Leave the previous server session intact so New Chat is not a delete.
+    void previousConversationId
     const nextId = crypto.randomUUID()
     conversationIdRef.current = nextId
     viewTransitionRef.current = detachView().then(() => {
@@ -1046,7 +1031,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     // (via the restore effect's cleanup), so a stale response can't revive the
     // old conversation over this new blank session.
     setSearchParams({}, { replace: true })
-    writeStoredConversationId(null)
+    // Keep lastStored so Resume still opens the previous thread.
   }
 
   const handleSelectProvider = (provider: Provider) => {

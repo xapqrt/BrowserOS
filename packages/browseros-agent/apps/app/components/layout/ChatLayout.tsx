@@ -5,6 +5,7 @@ import {
   useChatSessionContext,
 } from '@/modules/chat/chat-session-context'
 import { readStoredConversationId } from '@/modules/chat/chat-session.hooks'
+import { useServerConversations } from '@/modules/conversations/conversations.hooks'
 import { conversationTitle } from '@/modules/conversations/history-list'
 import { ChatHistory } from '@/screens/sidepanel/history/ChatHistory'
 import { Chat } from '@/screens/sidepanel/index/Chat'
@@ -17,7 +18,9 @@ const ChatLayoutContent: FC = () => {
     handleSelectProvider,
     resetConversation,
     messages,
+    conversationId,
   } = useChatSessionContext()
+  const { data: historyRows = [] } = useServerConversations()
 
   const location = useLocation()
   const isHistoryPage = location.pathname === '/history'
@@ -28,7 +31,14 @@ const ChatLayoutContent: FC = () => {
     .map((p) => ('text' in p ? p.text : ''))
     .join(' ')
   const threadTitle = lastUserText ? conversationTitle(lastUserText) : undefined
-  const resumeConversationId = readStoredConversationId()
+  const storedId = readStoredConversationId()
+  const knownIds = new Set(historyRows.map((row) => row.id))
+  const resumeConversationId =
+    storedId &&
+    storedId !== conversationId &&
+    (knownIds.size === 0 || knownIds.has(storedId))
+      ? storedId
+      : null
 
   // History is an overlay so the live chat (and its stream) stay mounted.
   return (

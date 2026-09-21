@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { MessageSquare, Trash2 } from 'lucide-react'
+import { Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { type FC, useState } from 'react'
 import { Link } from 'react-router'
 import {
@@ -22,21 +22,60 @@ export interface ConversationItemProps {
   conversation: HistoryConversation
   onDelete?: (id: string) => void
   isActive: boolean
+  customTitle?: string
+  pinned?: boolean
+  onRename?: (id: string, title: string) => void
+  onTogglePin?: (id: string) => void
+}
+
+function originLabel(origin?: string): string | null {
+  if (!origin) return null
+  if (origin === 'newtab') return 'New tab'
+  if (origin === 'sidepanel') return 'Panel'
+  return origin
+}
+
+function agentLabel(targetType?: string): string | null {
+  if (!targetType || targetType === 'browseros') return null
+  if (targetType === 'codex') return 'Codex'
+  if (targetType === 'claude') return 'Claude'
+  return targetType
 }
 
 export const ConversationItem: FC<ConversationItemProps> = ({
   conversation,
   onDelete,
   isActive,
+  customTitle,
+  pinned,
+  onRename,
+  onTogglePin,
 }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const label = conversationTitle(conversation.lastUserMessage)
+  const label =
+    customTitle?.trim() || conversationTitle(conversation.lastUserMessage)
   const relativeTimeAgo = dayjs(conversation.lastMessagedAt).fromNow()
+  const where = originLabel(conversation.origin)
+  const agent = agentLabel(conversation.targetType)
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setShowDeleteDialog(true)
+  }
+
+  const handleRename = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const next = window.prompt('Name this chat', label)
+    if (next == null) return
+    onRename?.(conversation.id, next.trim())
+  }
+
+  const handlePin = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onTogglePin?.(conversation.id)
   }
 
   const handleConfirmDelete = () => {
@@ -52,36 +91,63 @@ export const ConversationItem: FC<ConversationItemProps> = ({
           isActive ? 'bg-muted/70' : ''
         }`}
       >
-        <div
-          className={`mt-0.5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
-        >
-          <MessageSquare className="h-4 w-4" />
-        </div>
         <div className="min-w-0 flex-1 overflow-hidden">
           <p className="truncate font-medium text-foreground text-sm">
+            {pinned ? '📌 ' : ''}
             {label}
           </p>
-          <p className="text-muted-foreground text-xs">{relativeTimeAgo}</p>
+          <p className="text-muted-foreground text-xs">
+            {relativeTimeAgo}
+            {where ? ` · ${where}` : ''}
+            {agent ? ` · ${agent}` : ''}
+          </p>
         </div>
-        {onDelete && (
-          <button
-            type="button"
-            onClick={handleDeleteClick}
-            className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-            title="Delete conversation"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
+        <div className="flex shrink-0 items-center">
+          {onTogglePin ? (
+            <button
+              type="button"
+              onClick={handlePin}
+              className="rounded-md p-2 text-muted-foreground hover:text-foreground"
+              title={pinned ? 'Unpin' : 'Pin'}
+            >
+              {pinned ? (
+                <PinOff className="h-3.5 w-3.5" />
+              ) : (
+                <Pin className="h-3.5 w-3.5" />
+              )}
+            </button>
+          ) : null}
+          {onRename ? (
+            <button
+              type="button"
+              onClick={handleRename}
+              className="rounded-md p-2 text-muted-foreground hover:text-foreground"
+              title="Rename"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={handleDeleteClick}
+              className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              aria-label="Delete conversation"
+              title="Delete from this device and your account"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
       </Link>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this chat everywhere?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your
-              conversation and all its messages.
+              Removes it from this device and from your account copy if one
+              exists. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

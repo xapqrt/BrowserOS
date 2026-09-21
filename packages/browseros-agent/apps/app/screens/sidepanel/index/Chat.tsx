@@ -12,6 +12,7 @@ import {
 import { track } from '@/lib/metrics/track'
 import { useChatSessionContext } from '@/modules/chat/chat-session-context'
 import { readStoredConversationId } from '@/modules/chat/chat-session.hooks'
+import { useServerConversations } from '@/modules/conversations/conversations.hooks'
 import type { ChatMode } from '@/modules/chat/chat-types'
 import { useJtbdPopup } from '@/modules/jtbd-popup/jtbd-popup.hooks'
 import { buildChatErrorProps } from './Chat.helpers'
@@ -58,6 +59,14 @@ export const Chat = () => {
     onDismiss: onDismissJtbdPopup,
   } = useJtbdPopup()
 
+  const { data: historyRows = [] } = useServerConversations()
+  const knownHistoryIds = new Set(historyRows.map((row) => row.id))
+  const lastGoodId = (() => {
+    const stored = readStoredConversationId()
+    if (!stored || stored === conversationId) return null
+    if (knownHistoryIds.size > 0 && !knownHistoryIds.has(stored)) return null
+    return stored
+  })()
   const [input, setInput] = useState('')
   const [attachedTabs, setAttachedTabs] = useState<chrome.tabs.Tab[]>([])
   const [mounted, setMounted] = useState(false)
@@ -172,16 +181,21 @@ export const Chat = () => {
             >
               Try again
             </button>
+            {lastGoodId ? (
+              <a
+                href={`#/?conversationId=${lastGoodId}`}
+                className="text-primary text-sm underline"
+              >
+                Open last saved chat
+              </a>
+            ) : null}
           </div>
         ) : messages.length === 0 ? (
           <ChatEmptyState
             mode={mode}
             mounted={mounted}
             onSuggestionClick={handleSuggestionClick}
-            resumeConversationId={(() => {
-              const stored = readStoredConversationId()
-              return stored && stored !== conversationId ? stored : null
-            })()}
+            resumeConversationId={lastGoodId}
           />
         ) : (
           <ChatMessages

@@ -18,7 +18,9 @@ import { track } from '@/lib/metrics/track'
 import { consumePendingHomeMessage } from '@/modules/chat/pending-home-message'
 import { useChatActions } from '@/modules/chat-actions/chat-actions.hooks'
 import { useActiveConversation } from '@/modules/conversations/active-conversation-context'
+import { readStoredConversationId } from '@/modules/chat/chat-session.hooks'
 import { conversationTitle } from '@/modules/conversations/history-list'
+import { useServerConversations } from '@/modules/conversations/conversations.hooks'
 import { ChatEmptyState } from '@/screens/sidepanel/index/ChatEmptyState'
 import { ChatError } from '@/screens/sidepanel/index/ChatError'
 import { ChatFooter } from '@/screens/sidepanel/index/ChatFooter'
@@ -135,6 +137,16 @@ export const NewTabChat: FC = () => {
     resetConversation()
   }
 
+  const { data: historyRows = [] } = useServerConversations()
+  const storedId = readStoredConversationId()
+  const knownIds = new Set(historyRows.map((row) => row.id))
+  const lastGoodId =
+    storedId &&
+    storedId !== conversationId &&
+    (knownIds.size === 0 || knownIds.has(storedId))
+      ? storedId
+      : null
+
   if (!selectedProvider) return null
 
   return (
@@ -146,6 +158,7 @@ export const NewTabChat: FC = () => {
         onNewConversation={handleNewConversation}
         hasMessages={messages.length > 0}
         hideHistory
+        resumeConversationId={lastGoodId}
         className="shrink-0 px-4 sm:px-8"
       />
 

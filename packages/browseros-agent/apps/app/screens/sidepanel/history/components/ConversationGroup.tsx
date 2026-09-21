@@ -7,6 +7,10 @@ export interface ConversationGroupProps {
   conversations: HistoryConversation[]
   onDelete?: (id: string) => void
   activeConversationId: string
+  titles?: Record<string, string>
+  pinnedIds?: ReadonlySet<string>
+  onRename?: (id: string, title: string) => void
+  onTogglePin?: (id: string) => void
 }
 
 export const ConversationGroup: FC<ConversationGroupProps> = ({
@@ -14,6 +18,10 @@ export const ConversationGroup: FC<ConversationGroupProps> = ({
   conversations,
   onDelete,
   activeConversationId,
+  titles,
+  pinnedIds,
+  onRename,
+  onTogglePin,
 }) => {
   if (conversations.length === 0) return null
 
@@ -29,6 +37,10 @@ export const ConversationGroup: FC<ConversationGroupProps> = ({
             conversation={conversation}
             onDelete={onDelete}
             isActive={conversation.id === activeConversationId}
+            customTitle={titles?.[conversation.id]}
+            pinned={pinnedIds?.has(conversation.id)}
+            onRename={onRename}
+            onTogglePin={onTogglePin}
           />
         ))}
       </div>

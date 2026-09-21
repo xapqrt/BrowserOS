@@ -18,6 +18,10 @@ export interface ConversationListProps {
    * so the wording has to say which store is empty.
    */
   emptyMessage?: string
+  titles?: Record<string, string>
+  pinnedIds?: ReadonlySet<string>
+  onRename?: (id: string, title: string) => void
+  onTogglePin?: (id: string) => void
 }
 
 export const ConversationList: FC<ConversationListProps> = ({
@@ -29,6 +33,10 @@ export const ConversationList: FC<ConversationListProps> = ({
   onLoadMore,
   isRefreshing,
   emptyMessage = 'No conversations yet',
+  titles,
+  pinnedIds,
+  onRename,
+  onTogglePin,
 }) => {
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
@@ -57,6 +65,7 @@ export const ConversationList: FC<ConversationListProps> = ({
   }, [hasNextPage, isFetchingNextPage, onLoadMore])
 
   const hasConversations =
+    groupedConversations.pinned.length > 0 ||
     groupedConversations.today.length > 0 ||
     groupedConversations.thisWeek.length > 0 ||
     groupedConversations.thisMonth.length > 0 ||
@@ -80,30 +89,27 @@ export const ConversationList: FC<ConversationListProps> = ({
         </div>
       ) : (
         <>
-          <ConversationGroup
-            label={TIME_GROUP_LABELS.today}
-            conversations={groupedConversations.today}
-            onDelete={onDelete}
-            activeConversationId={activeConversationId}
-          />
-          <ConversationGroup
-            label={TIME_GROUP_LABELS.thisWeek}
-            conversations={groupedConversations.thisWeek}
-            onDelete={onDelete}
-            activeConversationId={activeConversationId}
-          />
-          <ConversationGroup
-            label={TIME_GROUP_LABELS.thisMonth}
-            conversations={groupedConversations.thisMonth}
-            onDelete={onDelete}
-            activeConversationId={activeConversationId}
-          />
-          <ConversationGroup
-            label={TIME_GROUP_LABELS.older}
-            conversations={groupedConversations.older}
-            onDelete={onDelete}
-            activeConversationId={activeConversationId}
-          />
+          {(
+            [
+              'pinned',
+              'today',
+              'thisWeek',
+              'thisMonth',
+              'older',
+            ] as const
+          ).map((key) => (
+            <ConversationGroup
+              key={key}
+              label={TIME_GROUP_LABELS[key]}
+              conversations={groupedConversations[key]}
+              onDelete={onDelete}
+              activeConversationId={activeConversationId}
+              titles={titles}
+              pinnedIds={pinnedIds}
+              onRename={onRename}
+              onTogglePin={onTogglePin}
+            />
+          ))}
 
           {hasNextPage && (
             <div

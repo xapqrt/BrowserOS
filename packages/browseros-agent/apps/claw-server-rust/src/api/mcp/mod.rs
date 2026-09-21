@@ -18,7 +18,7 @@ use rmcp::transport::streamable_http_server::{
     session::local::LocalSessionManager,
     tower::{StreamableHttpServerConfig, StreamableHttpService},
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 pub use service::ClawMcpService;
 
@@ -66,6 +66,9 @@ pub fn streamable_http_service(
     StreamableHttpService::new(
         move || Ok(browser_mcp_service(state.clone())),
         Arc::new(LocalSessionManager::default()),
-        StreamableHttpServerConfig::default(),
+        StreamableHttpServerConfig {
+            sse_keep_alive: Some(Duration::from_secs(15)),
+            ..StreamableHttpServerConfig::default()
+        },
     )
 }

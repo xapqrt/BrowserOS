@@ -9,8 +9,8 @@ use serde_json::json;
 
 const DESCRIPTION: &str = "\
 Manage browser tabs: list open pages (with their page ids), show the active page, \
-open a new page in the background (snapshot attached), or close one. \
-Use the returned page id with snapshot/act/navigate.";
+open a new page in the background (snapshot attached), close one, or activate a page \
+(bring it to the front). Use the returned page id with snapshot/act/navigate.";
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -20,6 +20,7 @@ enum TabsAction {
     Active,
     New,
     Close,
+    Activate,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -110,6 +111,16 @@ fn handler<'a>(
                 };
                 ctx.session.pages.close(PageId(page)).await?;
                 text_result(format!("closed page {page}"), Some(json!({ "page": page })))
+            }
+            TabsAction::Activate => {
+                let Some(page) = args.page else {
+                    return Ok(Some(error_result("tabs activate: page is required.")));
+                };
+                let info = ctx.session.pages.activate(PageId(page)).await?;
+                text_result(
+                    format!("activated page {}", info.page_id.0),
+                    Some(json!({ "action": "activate", "page": page_json(&info) })),
+                )
             }
         };
         Ok(Some(result))

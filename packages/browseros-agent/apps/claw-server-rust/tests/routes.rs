@@ -320,6 +320,17 @@ async fn mcp_hygiene_rejects_browser_originated_requests() -> anyhow::Result<()>
     .await?;
     assert_eq!(status, StatusCode::OK);
 
+    // Native Electron / MCP clients send Sec-Fetch-Site: none, not a page Origin.
+    let (status, _headers, _body) = request_json_with_headers(
+        &app.router,
+        "GET",
+        "/mcp",
+        None,
+        &[("sec-fetch-site", "none")],
+    )
+    .await?;
+    assert_ne!(status, StatusCode::FORBIDDEN);
+
     // CORS preflight stays 204 like every other route (TS cors layer
     // answers OPTIONS before hygiene runs).
     let (status, _headers, _body) = request_json_with_headers(

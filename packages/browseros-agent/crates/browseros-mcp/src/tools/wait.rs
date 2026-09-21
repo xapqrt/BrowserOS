@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 pub const DEFAULT_PAUSE_MS: u64 = 2_000;
 const DEFAULT_WAIT_TIMEOUT_MS: u64 = 2_000;
-const MAX_WAIT_TIMEOUT_MS: u64 = 30_000;
+const MAX_WAIT_TIMEOUT_MS: u64 = 300_000;
 const DESCRIPTION: &str = "\
 Wait on a signal: for=\"text\" (substring appears) or for=\"selector\" (CSS selector matches) \
 beat a blind pause. for=\"time\" (default) pauses value ms (default 2000) - last resort. \
@@ -76,7 +76,8 @@ fn handler<'a>(
         let timeout = clamp_timeout(args.timeout, DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS);
         let value = args.value.as_ref().map(wait_value_to_string);
         if matches!(args.wait_for, WaitFor::Time) {
-            let wait_ms = parse_wait_ms(value.as_deref(), DEFAULT_PAUSE_MS).min(timeout);
+            let wait_ms =
+                parse_wait_ms(value.as_deref(), DEFAULT_PAUSE_MS).min(MAX_WAIT_TIMEOUT_MS);
             abortable_delay(ctx, Duration::from_millis(wait_ms)).await?;
             return Ok(Some(text_result(
                 format!("waited {wait_ms}ms"),

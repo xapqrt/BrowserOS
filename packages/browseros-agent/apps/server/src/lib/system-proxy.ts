@@ -41,9 +41,11 @@ function parseScutil(output: string): {
   return {}
 }
 
-/** First `PROXY host:port` in a PAC script. DIRECT-only PAC is empty (fail-open). */
+/** First HTTP(S)/SOCKS proxy in a PAC script. DIRECT-only PAC is empty (fail-open). */
 export function parsePacFindProxy(pacText: string): { host?: string; port?: string } {
-  const match = pacText.match(/PROXY\s+([^\s;:]+):(\d+)/i)
+  const match = pacText.match(
+    /(?:HTTPS|PROXY|SOCKS(?:5|4A?)?)\s+([^\s;:]+):(\d+)/i,
+  )
   if (!match) return {}
   return { host: match[1], port: match[2] }
 }

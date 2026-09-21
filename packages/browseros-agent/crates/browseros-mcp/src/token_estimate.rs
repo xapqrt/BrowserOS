@@ -77,10 +77,14 @@ pub fn slice_text_by_estimated_tokens(text: &str, max_tokens: usize) -> String {
 
 fn floor_char_boundary(text: &str, index: usize) -> usize {
     let mut index = index.min(text.len());
-    while !text.is_char_boundary(index) {
+    // UTF-8 lead bytes are at most 4 bytes; never spin if index is garbage (#2707).
+    for _ in 0..4 {
+        if text.is_char_boundary(index) {
+            return index;
+        }
         index = index.saturating_sub(1);
     }
-    index
+    0
 }
 
 fn estimate_content_block_tokens(content: &ContentBlock) -> i64 {

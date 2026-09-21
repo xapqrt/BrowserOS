@@ -57,8 +57,19 @@ function toolResultContentPartToText(part: ToolResultContentPart): string {
       return formatFileId(part.fileId)
     case 'custom':
       return '[Custom content]'
-    default:
+    default: {
+      // MCP screenshot blocks sometimes arrive as `{ type: 'image', data }`
+      // instead of `image-data`. Keep a visible marker so vision models are
+      // not handed the empty `[Tool content omitted]` stub (#2722).
+      const unknown = part as { type?: string; data?: unknown }
+      if (
+        unknown.type === 'image' ||
+        (typeof unknown.data === 'string' && unknown.data.length > 0)
+      ) {
+        return '[Image]'
+      }
       return ''
+    }
   }
 }
 
@@ -152,9 +163,12 @@ function stripToolMessage(msg: ToolModelMessage): ToolModelMessage {
 function stripUserContent(content: UserContent): UserContent {
   if (typeof content === 'string') return content
 
+  // Keep user-message images. OpenRouter cannot take images inside tool
+  // results, so screenshots are lifted onto a follow-up user message; wiping
+  // those here is how the model only saw `[Tool content omitted]` (#2722).
   return content.map((part) => {
     if (part.type === 'image') {
-      return { type: 'text' as const, text: '[Image]' }
+      return part
     }
     if (part.type === 'file') {
       return {

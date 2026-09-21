@@ -22,7 +22,7 @@ import { BROWSER_TOOLS } from './registry'
 const SESSION_META_KEY = 'com.browseros/session'
 
 const SESSION_ARG_DESCRIPTION =
-  'Opaque session handle for this browser session. The server returns it in every tool result under `_meta` at the key `com.browseros/session`; read it from there and pass it back as this `session` argument on every later call to keep the same browser session and its tab ownership. Omit it only on the first call to start a new session.'
+  'Opaque session handle for this browser session. The server returns it in every tool result under `_meta` at `com.browseros/session` and as a `BrowserOS session: <id>` text line (clients that cannot see `_meta` still keep tab ownership). Pass it back as this `session` argument on every later call. Omit it only on the first call to start a new session.'
 
 function resolveSessionHandle(
   args: Record<string, unknown>,
@@ -55,8 +55,19 @@ function buildToolResult(
 } {
   const structuredContent =
     includeStructured || hasOutputSchema ? result.structuredContent : undefined
+  const content = Array.isArray(result.content)
+    ? sessionHandle
+      ? [
+          ...result.content,
+          {
+            type: 'text' as const,
+            text: `BrowserOS session: ${sessionHandle}`,
+          },
+        ]
+      : result.content
+    : result.content
   return {
-    content: result.content,
+    content,
     isError: result.isError,
     ...(structuredContent !== undefined && { structuredContent }),
     ...(sessionHandle !== undefined && {

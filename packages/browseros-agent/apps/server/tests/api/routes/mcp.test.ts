@@ -129,11 +129,13 @@ describe('createMcpRoutes', () => {
     const app = createTestMcpRoutes()
 
     const blocked = await postMcp(app, { 'Sec-Fetch-Site': 'cross-site' })
+    const electron = await postMcp(app, { 'Sec-Fetch-Site': 'none' })
     const allowed = await postMcp(app)
 
     expect(blocked.status).toBe(403)
     const body = (await blocked.json()) as { error: { code: string } }
     expect(body.error.code).toBe('FORBIDDEN_BROWSER_REQUEST')
+    expect(electron.status).toBe(200)
     expect(allowed.status).toBe(200)
   })
 })

@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000000..2a014baad4443
 --- /dev/null
 +++ b/chrome/app/app-entitlements-browseros.plist
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,33 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 +<plist version="1.0">
@@ -29,6 +29,7 @@ index 0000000000000..2a014baad4443
 +		<string>${CHROMIUM_TEAM_ID}.${CHROMIUM_BUNDLE_ID}.devicetrust</string>
 +		<string>${CHROMIUM_TEAM_ID}.${CHROMIUM_BUNDLE_ID}.secure-payment-confirmation</string>
 +		<string>${CHROMIUM_TEAM_ID}.${CHROMIUM_BUNDLE_ID}.unexportable-keys</string>
++		<string>${CHROMIUM_TEAM_ID}.${CHROMIUM_BUNDLE_ID}</string>
 +		<string>${CHROMIUM_TEAM_ID}.${CHROMIUM_BUNDLE_ID}.webauthn</string>
 +		<string>${CHROMIUM_TEAM_ID}.${CHROMIUM_BUNDLE_ID}.webauthn-uvk</string>
 +	</array>

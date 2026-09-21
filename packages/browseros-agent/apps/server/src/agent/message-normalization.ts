@@ -88,6 +88,23 @@ function buildToolResultMediaLabel(parts: UserMediaPart[]): string {
 function toolResultContentPartToUserMedia(
   part: ToolResultContentPart,
 ): UserMediaPart | null {
+  const unknown = part as {
+    type?: string
+    data?: string
+    mediaType?: string
+    mimeType?: string
+  }
+  if (
+    unknown.type === 'image' &&
+    typeof unknown.data === 'string' &&
+    unknown.data.length > 0
+  ) {
+    return {
+      type: 'image',
+      image: unknown.data,
+      mediaType: unknown.mediaType ?? unknown.mimeType ?? 'image/png',
+    }
+  }
   switch (part.type) {
     case 'image-data':
       if (part.mediaType.startsWith('image/')) {

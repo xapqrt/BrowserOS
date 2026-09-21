@@ -215,7 +215,10 @@ pub(crate) fn clamp_text(text: &str, max_chars: usize) -> String {
     }
     let prefix_length = max_chars.saturating_sub(LINE_TRUNCATION_MARKER.len());
     let mut end = prefix_length;
-    while !text.is_char_boundary(end) {
+    for _ in 0..4 {
+        if text.is_char_boundary(end) {
+            break;
+        }
         end = end.saturating_sub(1);
     }
     format!("{}{}", &text[..end], LINE_TRUNCATION_MARKER)

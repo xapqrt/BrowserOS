@@ -53,6 +53,16 @@ describe('parsePacFindProxy', () => {
   it('is empty for DIRECT-only PAC', () => {
     expect(parsePacFindProxy('return "DIRECT"')).toEqual({})
   })
+
+  it('reads HTTPS and SOCKS PAC tokens', () => {
+    expect(
+      parsePacFindProxy('return "HTTPS proxy.corp:8443; DIRECT"'),
+    ).toEqual({ host: 'proxy.corp', port: '8443' })
+    expect(parsePacFindProxy('return "SOCKS5 10.0.0.8:1080"')).toEqual({
+      host: '10.0.0.8',
+      port: '1080',
+    })
+  })
 })
 
 describe('parseWinHttpProxy', () => {

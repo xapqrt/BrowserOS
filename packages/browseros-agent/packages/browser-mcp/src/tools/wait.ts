@@ -13,12 +13,12 @@ import {
 // into timeout still only pauses this long by default).
 export const DEFAULT_PAUSE_MS = 2_000
 const DEFAULT_WAIT_TIMEOUT_MS = 2_000
-const MAX_WAIT_TIMEOUT_MS = 30_000
+const MAX_WAIT_TIMEOUT_MS = 8_000
 
 export const wait = defineTool({
   name: 'wait',
   description:
-    'Pause before continuing. Prefer acting directly and reading the diff; use wait only when there is no reliable UI signal yet. for="time" (default) pauses for value ms; "text" waits for a substring to appear; "selector" waits for a CSS selector to match. value is optional — for "time" it defaults to 2000ms, so calling wait with just a page pauses ~2s.',
+    'Pause before continuing. Prefer acting and reading the diff. Never wait for the tab spinner or document.complete — SPAs never finish loading. for="time" pauses value ms (default 2000, max 8000). "text"/"selector" wait for a substring or CSS match, then give up. If it times out, continue with the current page.',
   input: z
     .object({
       page: z.number().int(),

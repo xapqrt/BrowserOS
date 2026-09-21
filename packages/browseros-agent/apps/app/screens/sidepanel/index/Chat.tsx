@@ -88,7 +88,7 @@ export const Chat = () => {
     const aiJustFinished = aiWasProcessing && status === 'ready'
 
     if (aiJustFinished && messages.length > 0) {
-      triggerIfEligible()
+      void triggerIfEligible
     }
     previousChatStatus.current = status
   }, [status])

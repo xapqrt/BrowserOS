@@ -653,7 +653,7 @@ pub fn page_json(page: &browseros_core::pages::PageInfo) -> Value {
         "url": page.url.as_str(),
         "title": page.title.as_str(),
         "isActive": page.is_active,
-        "isLoading": page.is_loading,
+        "isLoading": page.is_loading && page.load_progress < 0.5,
         "loadProgress": page.load_progress,
         "isPinned": page.is_pinned,
     });

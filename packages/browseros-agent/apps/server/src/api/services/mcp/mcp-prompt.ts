@@ -13,8 +13,9 @@ Observe → Act → Verify:
 - If navigation would disrupt a page the user is actively using, clone it by passing its listed URL to tabs action="new" and work in the new page.
 - Use snapshot before interacting — it returns refs like [ref=e12].
 - Use refs with act for click, fill, hover, select, press, scroll, and coordinate actions.
-- Use navigate for url/back/forward/reload; it returns a fresh snapshot because refs are invalidated.
-- Use read or grep for page text, screenshot for visual state, wait for explicit conditions, and run for page-context JavaScript only.
+- Use navigate for url/back/forward/reload; it returns a fresh snapshot because refs are invalidated. It does not wait for the tab spinner.
+- Use read or grep for page text, screenshot for visual state. Never wait for document.complete or the loading spinner; SPAs never finish. If wait times out, continue with the current page.
+- Use run for page-context JavaScript only.
 
 Obstacle handling:
 - Cookie banners, popups → dismiss and continue.
